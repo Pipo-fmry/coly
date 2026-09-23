@@ -12,3 +12,5 @@
 | 2026-09-23 | servir la webapp en mode dev pour l'iPhone | Next bloque ses ressources dev depuis une origine non locale (`*.ts.net`) : bouton Actualiser inerte | `pnpm web` (build + start) pour le téléphone ; `pnpm web:dev` seulement en local |
 | 2026-09-23 | jeter un email transporteur parce qu'aucun numéro n'y est reconnu | l'email GLS contenait relais, adresse et QR code, tout a été perdu | gabarit par transporteur (`parseCarrierEmail`) avant de conclure « sans numéro » |
 | 2026-09-23 | corriger au cas par cas à partir d'un seul colis ou d'une seule boîte mail | on s'adapte à un utilisateur, pas au marché | faits typés + fusion (ADR 0016), extraction générique (ADR 0017), décision sur le rapport de couverture |
+| 2026-09-23 | mettre des phrases d'explication dans l'app (sources, « Coly a lu », limites) | l'utilisateur veut une app sobre | faits et actions uniquement ; transparence dans une page dédiée |
+| 2026-09-23 | rendre cliquable une partie seulement d'une carte | on devait viser le nom du marchand pour ouvrir le colis | toute la carte est un lien |

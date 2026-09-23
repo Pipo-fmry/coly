@@ -378,3 +378,37 @@ code {
   background: var(--brand-pin);
   color: var(--brand-citron);
 }
+
+.truth {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-list);
+  background: var(--chip);
+}
+
+.truth-question {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.truth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.truth-actions button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

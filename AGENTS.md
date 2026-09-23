@@ -20,6 +20,7 @@ pnpm test:watch            # tests en continu
 pnpm web                   # webapp (build + serveur) sur 127.0.0.1:3000 — téléphone : docs/guides/mobile-tailscale.md
 pnpm web:dev               # webapp en mode développement (rechargement à chaud)
 pnpm web:demo              # webapp sur des colis fictifs
+pnpm coverage              # rapport de couverture (docs/plan/roadmap.md) : on décide sur ces chiffres
 pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md)
 ```
 

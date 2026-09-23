@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "spike": "node --env-file-if-exists=../../.env.local src/spike.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "coverage": "node --env-file-if-exists=../../.env.local src/coverage-cli.ts"
   },
   "dependencies": {
     "@coly/core": "workspace:*"
@@ -13,6 +14,7 @@
   "exports": {
     "./sync": "./src/sync.ts",
     "./oauth": "./src/gmail/oauth.ts",
-    "./config": "./src/config.ts"
+    "./config": "./src/config.ts",
+    "./ground-truth": "./src/ground-truth.ts"
   }
 }

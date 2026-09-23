@@ -37,7 +37,7 @@ La minimisation est une exigence produit au même rang que la fiabilité du stat
    | destinataires, noms, adresse personnelle, téléphone | |
    | emails écartés (même leur existence n'est pas conservée) | |
 
-5. **Rendre visible.** L'app montrera un **journal de lecture** : quels emails ont été lus et pourquoi, ce qui en a
+5. **Rendre visible.** L'app montrera, dans une page « Confidentialité » dédiée (jamais sur l'accueil, cf. design system), un **journal de lecture** : quels emails ont été lus et pourquoi, ce qui en a
    été extrait, avec exclusion d'un expéditeur, export et suppression en un geste.
 6. **Faire respecter par le code.** Toute nouvelle donnée persistée passe par une mise à jour de cet ADR et du
    [modèle de menaces](../security/threat-model.md). Quand le stockage existera, un test vérifiera que le schéma

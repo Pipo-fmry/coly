@@ -88,6 +88,8 @@ export interface ColyState {
     bodiesRead: number;
     skipped: Record<SkipReason, number>;
     aggregatorCalls: number;
+    /** Emails d'expéditeurs transporteurs lus sans aucune information extraite, par domaine. */
+    carrierEmailsNotUnderstood: Record<string, number>;
   };
   shipments: ShipmentState[];
   readWithoutNumber: Sighting[];
@@ -207,6 +209,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       not_transactional: previous?.counts.skipped.not_transactional ?? 0,
     },
     aggregatorCalls: 0,
+    carrierEmailsNotUnderstood: { ...previous?.counts.carrierEmailsNotUnderstood },
   };
   const rows = new Map<string, ShipmentState>(previous?.shipments.map((s) => [s.id, s]));
   const readWithoutNumber: Sighting[] = [...(previous?.readWithoutNumber ?? [])];
@@ -236,6 +239,11 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       subject: header.subject,
       text: message.text,
     });
+    if (decision.reason === "carrier_sender" && !carrierEmail && candidates.length === 0) {
+      const domain = senderDomain(message.from);
+      counts.carrierEmailsNotUnderstood[domain] =
+        (counts.carrierEmailsNotUnderstood[domain] ?? 0) + 1;
+    }
     if (carrierEmail && !candidates.some((c) => c.trackingNumber === carrierEmail.trackingNumber))
       candidates.push({
         carrier: carrierEmail.carrier,
