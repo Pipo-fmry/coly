@@ -3,7 +3,11 @@
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 /** Filtre côté serveur : seuls les emails probablement liés à une commande ou un colis sont téléchargés. */
-export function buildQuery(days: number): string {
+/**
+ * Filtre côté serveur : seuls les emails probablement liés à une commande ou un colis sont listés (ADR 0013).
+ * `since` (synchro incrémentale) prime sur `days` (première synchro).
+ */
+export function buildQuery(options: { days: number; since?: Date }): string {
   const keywords = [
     "commande",
     "expédié",
@@ -16,7 +20,11 @@ export function buildQuery(days: number): string {
     "tracking",
     "shipped",
   ];
-  return `newer_than:${days}d -in:chats {${keywords.map((k) => `subject:${k}`).join(" ")}}`;
+  const window = options.since
+    ? `after:${Math.floor(options.since.getTime() / 1000)}`
+    : `newer_than:${options.days}d`;
+  const excluded = "-in:chats -category:promotions -category:social -category:forums";
+  return `${window} ${excluded} {${keywords.map((k) => `subject:${k}`).join(" ")}}`;
 }
 
 export interface MailMessage {

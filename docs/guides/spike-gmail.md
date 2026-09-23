@@ -40,8 +40,9 @@ Renseigner `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `LAPOSTE_OKAPI_KEY`, `AGG
 ## 4. Lancer
 
 ```bash
-pnpm spike                                   # 60 derniers jours
-pnpm spike --days=180 --aggregator-limit=30
+pnpm spike                                   # nouveaux emails depuis la dernière synchro
+pnpm spike --full                            # repart de zéro (90 jours)
+pnpm spike --aggregator-limit=30
 ```
 
 Au premier lancement, le navigateur s'ouvre pour autoriser la lecture seule de Gmail.

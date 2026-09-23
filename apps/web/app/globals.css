@@ -254,3 +254,99 @@ code {
   font-size: 13px;
   color: var(--status-problem-fg);
 }
+
+/* Détail d'un colis */
+.back {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+}
+
+.detail-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.confirmed {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--status-transit-bg);
+  color: var(--status-transit-fg);
+  font-size: 14px;
+}
+
+.button-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.timeline {
+  margin: 0;
+  padding: 16px 16px 16px 36px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-list);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timeline li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--brand-sauge);
+}
+
+.timeline li:first-child::before {
+  background: var(--brand-foret);
+  box-shadow: 0 0 0 3px var(--brand-citron);
+}
+
+.timeline-label {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.timeline-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.detail-facts .fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.detail-facts .fact + .fact {
+  border-top: 1px solid var(--divider);
+}

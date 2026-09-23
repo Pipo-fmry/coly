@@ -17,7 +17,7 @@ export async function POST(request: Request): Promise<Response> {
   if (running) return Response.json({ error: "Actualisation déjà en cours." }, { status: 409 });
 
   try {
-    running = runSync({ days: 60, max: 300, aggregatorLimit: 15 });
+    running = runSync({ max: 300, aggregatorLimit: 15 });
     await running;
     return Response.json({ ok: true });
   } catch (error) {

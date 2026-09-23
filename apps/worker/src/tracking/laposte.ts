@@ -1,15 +1,14 @@
 /** API La Poste Suivi v2 (Colissimo, Chronopost, courrier suivi). Clé Okapi gratuite. */
 
-import type { TrackingSnapshot } from "./types.ts";
+import type { TrackingEvent, TrackingSnapshot } from "./types.ts";
 
 interface LaPosteResponse {
-  returnCode?: number;
   returnMessage?: string;
+  message?: string;
   shipment?: {
     idShip: string;
     product?: string;
     isFinal?: boolean;
-    holder?: number;
     event?: { code?: string; label?: string; date?: string }[];
     contextData?: {
       removalPoint?: { name?: string; type?: string };
@@ -24,30 +23,38 @@ export async function trackLaPoste(key: string, trackingNumber: string): Promise
     { headers: { "X-Okapi-Key": key, accept: "application/json" } },
   );
   const body = (await response.json().catch(() => ({}))) as LaPosteResponse;
+  const fetchedAt = new Date().toISOString();
   const shipment = body.shipment;
   if (!response.ok || !shipment) {
     return {
       source: "laposte",
       trackingNumber,
       found: false,
+      fetchedAt,
+      events: [],
       relatedNumbers: [],
-      error: `${response.status} ${body.returnMessage ?? ""}`.trim(),
+      error: `${response.status} ${body.returnMessage ?? body.message ?? ""}`.trim(),
     };
   }
+
   // Les événements La Poste arrivent du plus récent au plus ancien.
-  const last = shipment.event?.[0];
+  const events = (shipment.event ?? []).map((e) => {
+    const event: TrackingEvent = { label: e.label ?? "" };
+    if (e.code) event.code = e.code;
+    if (e.date) event.at = e.date;
+    if (shipment.product) event.courier = shipment.product;
+    return event;
+  });
   const { partner, removalPoint } = shipment.contextData ?? {};
   const snapshot: TrackingSnapshot = {
     source: "laposte",
     trackingNumber,
     found: true,
+    fetchedAt,
+    events,
     relatedNumbers: partner?.reference ? [partner.reference] : [],
   };
-  if (last) {
-    snapshot.lastEvent = { label: last.label ?? "" };
-    if (last.code) snapshot.lastEvent.code = last.code;
-    if (last.date) snapshot.lastEvent.at = last.date;
-  }
+  if (events[0]) snapshot.lastEvent = events[0];
   if (shipment.product) snapshot.carrierSeen = shipment.product;
   if (shipment.isFinal !== undefined) snapshot.isFinal = shipment.isFinal;
   if (partner) snapshot.partner = partner;

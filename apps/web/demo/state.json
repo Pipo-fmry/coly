@@ -1,10 +1,13 @@
 {
-  "updatedAt": "2026-09-23T09:14:12.242Z",
+  "version": 2,
+  "updatedAt": "2026-09-23T12:42:37.792Z",
+  "syncedUntil": "2026-09-23T10:48:37.792Z",
   "counts": {
     "matchedQuery": 42,
     "bodiesRead": 17,
     "skipped": {
       "marketing": 21,
+      "feedback": 3,
       "not_transactional": 4
     },
     "aggregatorCalls": 9
@@ -25,9 +28,46 @@
           "messageId": "demo-XW000000001FR"
         }
       ],
-      "snapshots": [],
+      "snapshots": [
+        {
+          "source": "ship24",
+          "trackingNumber": "x",
+          "found": true,
+          "fetchedAt": "2026-09-23T12:48:37.793Z",
+          "events": [
+            {
+              "label": "Disponible au point relais",
+              "at": "2026-09-21T10:48:37.793Z",
+              "location": "Shop N Food",
+              "code": "delivery_available_for_pickup",
+              "courier": "demo"
+            },
+            {
+              "label": "En cours de livraison",
+              "at": "2026-09-21T00:48:37.793Z",
+              "location": "MARSEILLE",
+              "courier": "demo"
+            },
+            {
+              "label": "Pris en charge",
+              "at": "2026-09-19T18:48:37.793Z",
+              "location": "LYON",
+              "courier": "demo"
+            }
+          ],
+          "lastEvent": {
+            "label": "Disponible au point relais",
+            "at": "2026-09-21T10:48:37.793Z",
+            "location": "Shop N Food",
+            "code": "delivery_available_for_pickup",
+            "courier": "demo"
+          },
+          "sourceStatus": "available_for_pickup",
+          "relatedNumbers": []
+        }
+      ],
       "status": "available_for_pickup",
-      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "lastUpdate": "2026-09-23T09:48:37.793Z",
       "placeName": "Shop N Food"
     },
     {
@@ -45,9 +85,46 @@
           "messageId": "demo-00000002"
         }
       ],
-      "snapshots": [],
+      "snapshots": [
+        {
+          "source": "ship24",
+          "trackingNumber": "x",
+          "found": true,
+          "fetchedAt": "2026-09-23T12:48:37.793Z",
+          "events": [
+            {
+              "label": "Disponible au point relais",
+              "at": "2026-09-21T10:48:37.793Z",
+              "location": "Shop N Food",
+              "code": "delivery_available_for_pickup",
+              "courier": "demo"
+            },
+            {
+              "label": "En cours de livraison",
+              "at": "2026-09-21T00:48:37.793Z",
+              "location": "MARSEILLE",
+              "courier": "demo"
+            },
+            {
+              "label": "Pris en charge",
+              "at": "2026-09-19T18:48:37.793Z",
+              "location": "LYON",
+              "courier": "demo"
+            }
+          ],
+          "lastEvent": {
+            "label": "Disponible au point relais",
+            "at": "2026-09-21T10:48:37.793Z",
+            "location": "Shop N Food",
+            "code": "delivery_available_for_pickup",
+            "courier": "demo"
+          },
+          "sourceStatus": "available_for_pickup",
+          "relatedNumbers": []
+        }
+      ],
       "status": "available_for_pickup",
-      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "lastUpdate": "2026-09-23T09:48:37.793Z",
       "placeName": "Shop N Food"
     },
     {
@@ -65,30 +142,104 @@
           "messageId": "demo-6A00000000003"
         }
       ],
-      "snapshots": [],
+      "snapshots": [
+        {
+          "source": "ship24",
+          "trackingNumber": "x",
+          "found": true,
+          "fetchedAt": "2026-09-23T12:48:37.793Z",
+          "events": [
+            {
+              "label": "Disponible au point relais",
+              "at": "2026-09-21T10:48:37.793Z",
+              "location": "Shop N Food",
+              "code": "delivery_available_for_pickup",
+              "courier": "demo"
+            },
+            {
+              "label": "En cours de livraison",
+              "at": "2026-09-21T00:48:37.793Z",
+              "location": "MARSEILLE",
+              "courier": "demo"
+            },
+            {
+              "label": "Pris en charge",
+              "at": "2026-09-19T18:48:37.793Z",
+              "location": "LYON",
+              "courier": "demo"
+            }
+          ],
+          "lastEvent": {
+            "label": "Disponible au point relais",
+            "at": "2026-09-21T10:48:37.793Z",
+            "location": "Shop N Food",
+            "code": "delivery_available_for_pickup",
+            "courier": "demo"
+          },
+          "sourceStatus": "available_for_pickup",
+          "relatedNumbers": []
+        }
+      ],
       "status": "available_for_pickup",
-      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "lastUpdate": "2026-09-23T09:48:37.793Z",
       "placeName": "Shop N Food"
     },
     {
-      "id": "00000000000004",
+      "id": "00000000004",
       "candidate": {
-        "carrier": "dpd",
-        "trackingNumber": "00000000000004",
+        "carrier": "gls",
+        "trackingNumber": "00000000004",
         "via": "link"
       },
-      "merchant": "zalando.fr",
+      "merchant": "caats.co",
       "sightings": [
         {
           "date": "2026-09-21",
-          "senderDomain": "zalando.fr",
-          "messageId": "demo-00000000000004"
+          "senderDomain": "caats.co",
+          "messageId": "demo-00000000004"
         }
       ],
-      "snapshots": [],
+      "snapshots": [
+        {
+          "source": "ship24",
+          "trackingNumber": "x",
+          "found": true,
+          "fetchedAt": "2026-09-23T12:48:37.793Z",
+          "events": [
+            {
+              "label": "Disponible au point relais",
+              "at": "2026-09-21T10:48:37.793Z",
+              "location": "FR",
+              "code": "delivery_available_for_pickup",
+              "courier": "demo"
+            },
+            {
+              "label": "En cours de livraison",
+              "at": "2026-09-21T00:48:37.793Z",
+              "location": "MARSEILLE",
+              "courier": "demo"
+            },
+            {
+              "label": "Pris en charge",
+              "at": "2026-09-19T18:48:37.793Z",
+              "location": "LYON",
+              "courier": "demo"
+            }
+          ],
+          "lastEvent": {
+            "label": "Disponible au point relais",
+            "at": "2026-09-21T10:48:37.793Z",
+            "location": "FR",
+            "code": "delivery_available_for_pickup",
+            "courier": "demo"
+          },
+          "sourceStatus": "available_for_pickup",
+          "relatedNumbers": []
+        }
+      ],
       "status": "available_for_pickup",
-      "lastUpdate": "2026-09-23T06:20:12.245Z",
-      "placeName": "Tabac du Prado"
+      "lastUpdate": "2026-09-23T09:48:37.793Z",
+      "trackingUrl": "https://gls-group.eu/FR/fr/suivi-colis?match=00000000004"
     },
     {
       "id": "00000000000005",
@@ -107,7 +258,7 @@
       ],
       "snapshots": [],
       "status": "problem",
-      "lastUpdate": "2026-09-23T06:20:12.245Z"
+      "lastUpdate": "2026-09-23T09:48:37.793Z"
     },
     {
       "id": "6A00000000006",
@@ -126,7 +277,7 @@
       ],
       "snapshots": [],
       "status": "out_for_delivery",
-      "lastUpdate": "2026-09-23T06:20:12.245Z"
+      "lastUpdate": "2026-09-23T09:48:37.793Z"
     },
     {
       "id": "XW000000007FR",
@@ -145,7 +296,7 @@
       ],
       "snapshots": [],
       "status": "in_transit",
-      "lastUpdate": "2026-09-23T06:20:12.245Z"
+      "lastUpdate": "2026-09-23T09:48:37.793Z"
     },
     {
       "id": "TBA000000000008",
@@ -163,7 +314,7 @@
         }
       ],
       "snapshots": [],
-      "lastUpdate": "2026-09-23T06:20:12.245Z"
+      "lastUpdate": "2026-09-23T09:48:37.793Z"
     },
     {
       "id": "6A00000000009",
@@ -182,7 +333,26 @@
       ],
       "snapshots": [],
       "status": "delivered",
-      "lastUpdate": "2026-09-23T06:20:12.245Z"
+      "lastUpdate": "2026-09-23T09:48:37.793Z"
+    },
+    {
+      "id": "6A00000000010",
+      "candidate": {
+        "carrier": "colissimo",
+        "trackingNumber": "6A00000000010",
+        "via": "link"
+      },
+      "merchant": "ancien.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "ancien.fr",
+          "messageId": "demo-6A00000000010"
+        }
+      ],
+      "snapshots": [],
+      "lastUpdate": "2026-09-23T09:48:37.793Z",
+      "presumedDone": true
     }
   ],
   "readWithoutNumber": []

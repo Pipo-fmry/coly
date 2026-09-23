@@ -1,16 +1,20 @@
 /** Agrégateur Ship24 (plan gratuit : 10 colis/mois + 100 le 1er mois). Chaque nouveau numéro consomme 1 quota. */
 
-import type { TrackingSnapshot } from "./types.ts";
+import type { TrackingEvent, TrackingSnapshot } from "./types.ts";
 
 interface Ship24Response {
   data?: {
     trackings?: {
-      shipment?: { statusMilestone?: string; trackingNumbers?: { tn: string }[] };
+      shipment?: {
+        statusMilestone?: string;
+        trackingNumbers?: { tn: string }[];
+        delivery?: { estimatedDeliveryDate?: string | null };
+      };
       events?: {
         status?: string;
         statusCode?: string;
         occurrenceDatetime?: string;
-        location?: string;
+        location?: string | null;
         courierCode?: string;
       }[];
     }[];
@@ -25,34 +29,44 @@ export async function trackShip24(key: string, trackingNumber: string): Promise<
     body: JSON.stringify({ trackingNumber, destinationCountryCode: "FR" }),
   });
   const body = (await response.json().catch(() => ({}))) as Ship24Response;
+  const fetchedAt = new Date().toISOString();
   const tracking = body.data?.trackings?.[0];
   if (!response.ok || !tracking) {
     return {
       source: "ship24",
       trackingNumber,
       found: false,
+      fetchedAt,
+      events: [],
       relatedNumbers: [],
       error: `${response.status} ${body.errors?.[0]?.message ?? ""}`.trim(),
     };
   }
+
   // Ship24 : événements du plus récent au plus ancien.
-  const last = tracking.events?.[0];
-  const couriers = [...new Set((tracking.events ?? []).map((e) => e.courierCode).filter(Boolean))];
+  const events = (tracking.events ?? []).map((e) => {
+    const event: TrackingEvent = { label: e.status ?? "" };
+    if (e.statusCode) event.code = e.statusCode;
+    if (e.occurrenceDatetime) event.at = e.occurrenceDatetime;
+    if (e.location) event.location = e.location;
+    if (e.courierCode) event.courier = e.courierCode;
+    return event;
+  });
+  const couriers = [...new Set(events.map((e) => e.courier).filter(Boolean))];
   const snapshot: TrackingSnapshot = {
     source: "ship24",
     trackingNumber,
-    found: (tracking.events?.length ?? 0) > 0,
+    found: events.length > 0,
+    fetchedAt,
+    events,
     relatedNumbers: (tracking.shipment?.trackingNumbers ?? [])
       .map((t) => t.tn)
       .filter((tn) => tn !== trackingNumber),
   };
-  if (last) {
-    snapshot.lastEvent = { label: last.status ?? "" };
-    if (last.statusCode) snapshot.lastEvent.code = last.statusCode;
-    if (last.occurrenceDatetime) snapshot.lastEvent.at = last.occurrenceDatetime;
-    if (last.location) snapshot.lastEvent.location = last.location;
-  }
+  if (events[0]) snapshot.lastEvent = events[0];
   if (tracking.shipment?.statusMilestone) snapshot.sourceStatus = tracking.shipment.statusMilestone;
-  if (couriers.length > 0) snapshot.carrierSeen = couriers.join(" → ");
+  if (couriers.length > 0) snapshot.carrierSeen = couriers.reverse().join(" → ");
+  const eta = tracking.shipment?.delivery?.estimatedDeliveryDate;
+  if (eta) snapshot.estimatedDelivery = eta;
   return snapshot;
 }

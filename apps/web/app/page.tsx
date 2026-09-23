@@ -1,22 +1,18 @@
 import type { HomeShipment } from "@coly/core";
 import { readState } from "@coly/worker/sync";
+import Link from "next/link";
+import { formatDate, since } from "./format";
 import { RefreshButton } from "./refresh-button";
 import { STATUS_LABEL, toHomeView } from "./view-model";
 
 export const dynamic = "force-dynamic";
 
-const since = (iso: string) => {
-  const minutes = Math.round((Date.now() - Date.parse(iso)) / 60_000);
-  if (minutes < 1) return "à l'instant";
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  return hours < 24 ? `il y a ${hours} h` : `le ${iso.slice(0, 10)}`;
-};
+const href = (s: HomeShipment) => `/colis/${encodeURIComponent(s.id)}`;
 
 function ShipmentRow({ shipment, detail }: { shipment: HomeShipment; detail?: string }) {
   const status = shipment.status ? STATUS_LABEL[shipment.status] : undefined;
   return (
-    <div className="row">
+    <Link className="row" href={href(shipment)}>
       <span className="avatar" aria-hidden="true">
         {shipment.merchant.charAt(0)}
       </span>
@@ -25,7 +21,7 @@ function ShipmentRow({ shipment, detail }: { shipment: HomeShipment; detail?: st
         <span className="row-meta">{detail ?? shipment.carrier}</span>
       </span>
       <span className={`pill pill-${status?.tone ?? "done"}`}>{status?.label ?? "Inconnu"}</span>
-    </div>
+    </Link>
   );
 }
 
@@ -49,6 +45,8 @@ export default async function Home() {
 
   const view = toHomeView(state, new Date());
   const { counts } = state;
+  const nothingActive =
+    view.urgent.length + view.places.length + view.inTransit.length + view.unknown.length === 0;
 
   return (
     <main className="screen">
@@ -59,6 +57,16 @@ export default async function Home() {
         </div>
         <RefreshButton />
       </header>
+
+      {nothingActive && (
+        <section className="empty">
+          <h2>Rien en cours</h2>
+          <p>
+            Aucun colis en route ni à retirer. Coly regarde tes nouveaux emails à chaque
+            actualisation.
+          </p>
+        </section>
+      )}
 
       {view.urgent.length > 0 && (
         <section className="section">
@@ -89,15 +97,17 @@ export default async function Home() {
                 </div>
                 <div className="place-meta">
                   {place.earliestDeadline
-                    ? `Premier délai le ${place.earliestDeadline.slice(0, 10)}`
-                    : "Date limite inconnue"}
+                    ? `Premier délai le ${formatDate(place.earliestDeadline)}`
+                    : place.oldestArrival
+                      ? `Arrivé ${since(place.oldestArrival)} · date limite non communiquée`
+                      : "Date limite non communiquée"}
                 </div>
               </div>
               <div className="place-items">
                 {place.shipments.map((s) => (
-                  <span key={s.id} className="place-item">
+                  <Link key={s.id} className="place-item" href={href(s)}>
                     {s.merchant}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </article>
@@ -141,10 +151,15 @@ export default async function Home() {
       <section className="journal" aria-label="Ce que Coly a lu">
         <h2>Ce que Coly a lu</h2>
         <p>
-          {counts.bodiesRead} emails de commande ou de livraison lus, {counts.skipped.marketing}{" "}
-          emails marketing et {counts.skipped.not_transactional} autres écartés sans les ouvrir.
-          Aucun sujet ni contenu n'est conservé.
+          {counts.bodiesRead} emails de commande ou de livraison lus. Écartés sans être ouverts :{" "}
+          {counts.skipped.marketing} marketing, {counts.skipped.feedback} demandes d'avis,{" "}
+          {counts.skipped.not_transactional} autres. Aucun sujet ni contenu n'est conservé.
         </p>
+        {view.archived > 0 && (
+          <p>
+            {view.archived} colis de plus de 30 jours sont présumés terminés : Coly ne les suit pas.
+          </p>
+        )}
       </section>
     </main>
   );
