@@ -17,3 +17,4 @@ Une décision structurante = un fichier, numéroté, jamais réécrit une fois a
 | [0010](0010-ia-en-fallback-derriere-interface.md) | IA en fallback derrière une interface, OmniRoute hors prod | Accepté |
 | [0011](0011-graphify-reporte.md) | Graphify reporté | Accepté |
 | [0012](0012-outillage-qualite.md) | Outillage qualité : Biome, Vitest, Lefthook, Ponytail, CI sécurité | Accepté |
+| [0013](0013-minimisation-promesse-produit.md) | Ne lire et ne garder que l'indispensable : une promesse produit | Accepté |

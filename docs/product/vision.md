@@ -6,6 +6,9 @@
 
 Ne jamais afficher « à retirer » pour un colis déjà livré, et toujours dire **où aller, quoi faire en premier, et quand**.
 
+**Et ne lire que les emails de commande et de livraison, n'en garder que l'indispensable, et le montrer.**
+L'utilisateur doit pouvoir vérifier à tout moment ce que Coly a lu et gardé ([ADR 0013](../adr/0013-minimisation-promesse-produit.md)).
+
 ## Les trois problèmes à résoudre
 
 ### UC1 — « J'ai plein de colis, souvent au même endroit »

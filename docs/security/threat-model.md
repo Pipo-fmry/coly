@@ -28,7 +28,8 @@
 
 | Donnée | Gardée ? | Durée |
 |---|---|---|
-| Corps d'email | **non** (traité en mémoire) | — |
+| Email écarté sur ses en-têtes | **non**, contenu jamais téléchargé | — |
+| Corps et sujet d'email lu | **non** (traité en mémoire) | — |
 | Id de message Gmail, extraits de preuve courts | oui | durée de vie du colis |
 | Code / QR de retrait | oui, chiffré | purgé au retrait ou à la date limite + 7 j |
 | Colis livrés | oui | 12 mois (réglable) |

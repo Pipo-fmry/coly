@@ -1,6 +1,6 @@
 # Tester Coly sur sa propre boîte Gmail (spike)
 
-Une commande lit tes emails de commande et d'expédition, détecte les numéros de suivi, interroge La Poste et Ship24,
+Une commande trie tes emails sur leurs seuls en-têtes, ne lit que ceux de commande et d'expédition (jamais le marketing), détecte les numéros de suivi, interroge La Poste et Ship24,
 et affiche un rapport. Tout reste en local ; aucun corps d'email n'est écrit sur disque (ADR 0006).
 
 Durée de mise en place : ~15 min, une seule fois.
