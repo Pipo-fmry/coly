@@ -17,6 +17,7 @@ pnpm install               # installe + active les hooks git (lefthook)
 pnpm check                 # lint + types + tests : doit passer avant toute PR
 pnpm lint:fix              # formatage et corrections auto (Biome)
 pnpm test:watch            # tests en continu
+pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md)
 ```
 
 ## Carte du repo
@@ -26,7 +27,7 @@ pnpm test:watch            # tests en continu
 | `packages/core` | Domaine **pur** : modèle, réconciliation, statut, urgence, regroupement par lieu. Zéro I/O. |
 | `packages/ui` | Design system : tokens (couleurs, typo, espacements) + composants. |
 | `apps/web` | *(à venir)* PWA Next.js. |
-| `apps/worker` | *(à venir)* Ingestion Gmail, appels tracking, parsing. |
+| `apps/worker` | Ingestion Gmail, appels tracking (La Poste, Ship24). Aujourd'hui : la commande `pnpm spike`. |
 | `docs/` | Toute la doc : [index](docs/README.md). |
 
 ## Règles non négociables

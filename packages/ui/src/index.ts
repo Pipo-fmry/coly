@@ -1,2 +1,2 @@
-export { contrastRatio } from "./contrast";
-export * from "./tokens";
+export { contrastRatio } from "./contrast.ts";
+export * from "./tokens.ts";
