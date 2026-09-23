@@ -10,7 +10,7 @@ export interface MailHeader {
 
 export type MailDecision =
   | { read: true; reason: "carrier_sender" | "transactional_subject" }
-  | { read: false; reason: "marketing" | "not_transactional" };
+  | { read: false; reason: "marketing" | "feedback" | "not_transactional" };
 
 /** Domaines d'expéditeurs transporteurs : leurs emails concernent toujours un colis. */
 const CARRIER_SENDERS =
@@ -24,6 +24,10 @@ const TRANSACTIONAL_SUBJECT =
 const MARKETING_SUBJECT =
   /(livraison (offerte|gratuite)|frais de port offerts|\d{1,3} ?%|soldes|promo|code promo|black friday|newsletter|offre|jusqu'à|derniers jours|vente privée|nouveautés|découvrez)/i;
 
+/** Demandes d'avis, enquêtes : liées à une commande, mais inutiles à Coly. */
+const FEEDBACK_SUBJECT =
+  /(votre avis|donnez.{0,10}avis|évalue|evalue|notez|satisfaction|questionnaire|enquête|review)/i;
+
 const MAX_HEADER_LENGTH = 300;
 
 export function decideMailRead(header: MailHeader): MailDecision {
@@ -32,6 +36,7 @@ export function decideMailRead(header: MailHeader): MailDecision {
   const subject = header.subject.slice(0, MAX_HEADER_LENGTH);
   if (CARRIER_SENDERS.test(from)) return { read: true, reason: "carrier_sender" };
   if (MARKETING_SUBJECT.test(subject)) return { read: false, reason: "marketing" };
+  if (FEEDBACK_SUBJECT.test(subject)) return { read: false, reason: "feedback" };
   if (TRANSACTIONAL_SUBJECT.test(subject)) return { read: true, reason: "transactional_subject" };
   return { read: false, reason: "not_transactional" };
 }

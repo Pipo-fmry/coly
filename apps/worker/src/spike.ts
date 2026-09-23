@@ -1,12 +1,13 @@
 /**
  * CLI du job de synchronisation, avec rapport lisible dans le terminal.
- * Usage : pnpm spike [--days=60] [--max=300] [--aggregator-limit=15]
+ * Usage : pnpm spike [--full] [--max=300] [--aggregator-limit=15]
+ *   --full : ignore l'état existant et repart de SYNC_WINDOW_DAYS jours (sinon : synchro incrémentale).
  */
 
 import { execFile } from "node:child_process";
 import { parseArgs } from "node:util";
 import { MissingConfigError } from "./config.ts";
-import { runSync, STATE_FILE } from "./sync.ts";
+import { runSync, STATE_FILE, SYNC_WINDOW_DAYS } from "./sync.ts";
 import type { TrackingSnapshot } from "./tracking/types.ts";
 
 const print = (line = "") => process.stdout.write(`${line}\n`);
@@ -18,6 +19,7 @@ function describe(snapshot: TrackingSnapshot): string {
     snapshot.sourceStatus,
     snapshot.lastEvent?.label,
     snapshot.lastEvent?.at?.slice(0, 16),
+    `${snapshot.events.length} événements`,
   ];
   if (snapshot.carrierSeen) parts.push(`[${snapshot.carrierSeen}]`);
   if (snapshot.partner)
@@ -31,14 +33,14 @@ function describe(snapshot: TrackingSnapshot): string {
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
-      days: { type: "string", default: "60" },
+      full: { type: "boolean", default: false },
       max: { type: "string", default: "300" },
       "aggregator-limit": { type: "string", default: "15" },
     },
   });
 
-  const { state, unmatchedSubjects } = await runSync({
-    days: Number(values.days),
+  const { state, newEmails, unmatchedSubjects } = await runSync({
+    full: values.full,
     max: Number(values.max),
     aggregatorLimit: Number(values["aggregator-limit"]),
     onConsentUrl: (url) => {
@@ -50,25 +52,27 @@ async function main(): Promise<void> {
 
   const { counts } = state;
   print(
-    `\nGmail : ${counts.matchedQuery} emails passent le filtre serveur (${values.days} jours).`,
+    `\n${newEmails} nouveaux emails examinés (${values.full ? `${SYNC_WINDOW_DAYS} derniers jours` : "depuis la dernière synchro"}).`,
   );
   print(
-    `Contenu lu : ${counts.bodiesRead} · écartés sur en-têtes : ${counts.skipped.marketing} marketing, ${counts.skipped.not_transactional} non transactionnels.`,
+    `Au total : ${counts.bodiesRead} lus · écartés sans ouverture : ${counts.skipped.marketing} marketing, ${counts.skipped.feedback} avis, ${counts.skipped.not_transactional} autres.`,
   );
 
-  print(`\n${state.shipments.length} numéros de suivi détectés :\n`);
-  for (const row of state.shipments) {
+  const presumed = state.shipments.filter((s) => s.presumedDone).length;
+  print(
+    `\n${state.shipments.length} colis, dont ${presumed} anciens présumés terminés (non suivis) :\n`,
+  );
+  for (const row of state.shipments.filter((s) => !s.presumedDone)) {
     const first = row.sightings[0];
     print(
       `• ${first?.date} ${row.merchant} — ${row.candidate.carrier} ${row.id} → ${row.status ?? "statut inconnu"}${row.placeName ? ` @ ${row.placeName}` : ""}`,
     );
     for (const snapshot of row.snapshots)
       print(`    ${snapshot.source.padEnd(8)} ${describe(snapshot)}`);
-    if (row.snapshots.length === 0) print("    non interrogé (pas d'API, clé absente ou quota)");
   }
 
   // Sujets affichés ici uniquement, pour améliorer la détection ; jamais écrits sur disque.
-  print(`\n${unmatchedSubjects.length} emails lus sans numéro détecté :`);
+  print(`\n${unmatchedSubjects.length} nouveaux emails lus sans numéro détecté :`);
   for (const line of unmatchedSubjects.slice(0, 25)) print(`  ${line.slice(0, 110)}`);
 
   print(

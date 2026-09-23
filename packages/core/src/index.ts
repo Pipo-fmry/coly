@@ -8,6 +8,7 @@ export * from "./carriers.ts";
 export * from "./home.ts";
 export * from "./mail-filter.ts";
 export * from "./status.ts";
+export * from "./tracking-info.ts";
 
 /** D'où vient une information. Toujours portée par la donnée (cf. provenance). */
 export type SourceType = "email" | "carrier_api" | "aggregator" | "user";

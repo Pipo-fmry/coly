@@ -12,6 +12,8 @@ export interface HomeShipment {
   status: UserStatus | undefined;
   /** Nom du lieu de retrait, tel que donné par la source (dédoublonnage inter-réseaux : plus tard). */
   placeName?: string;
+  /** Arrivée au point de retrait (ISO), donnée par le transporteur. */
+  availableSince?: string;
   /** Date limite de retrait ISO, si connue. */
   pickupDeadline?: string;
   lastUpdate?: string;
@@ -21,6 +23,8 @@ export interface HomePlace {
   name: string;
   shipments: HomeShipment[];
   earliestDeadline?: string;
+  /** Arrivée la plus ancienne au lieu : sert quand aucune date limite n'est connue. */
+  oldestArrival?: string;
 }
 
 export interface HomeView {
@@ -62,6 +66,8 @@ export function buildHome(shipments: readonly HomeShipment[], now: Date): HomeVi
         (!place.earliestDeadline || s.pickupDeadline < place.earliestDeadline)
       )
         place.earliestDeadline = s.pickupDeadline;
+      if (s.availableSince && (!place.oldestArrival || s.availableSince < place.oldestArrival))
+        place.oldestArrival = s.availableSince;
       places.set(name, place);
     } else if (s.status === "delivered" || s.status === "picked_up" || s.status === "returned")
       view.done.push(s);

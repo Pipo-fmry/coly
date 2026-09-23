@@ -1,9 +1,17 @@
-/** Passage de l'état du worker à la vue d'accueil. Pas de logique métier ici : elle vit dans @coly/core. */
+/** Passage de l'état du worker aux vues. Pas de logique métier ici : elle vit dans @coly/core. */
 
-import { buildHome, type HomeShipment, type HomeView, type UserStatus } from "@coly/core";
-import type { ColyState } from "@coly/worker/sync";
+import {
+  buildHome,
+  type HomeShipment,
+  type HomeView,
+  isMeaningfulPlace,
+  mergeTimeline,
+  type SourcedEvent,
+  type UserStatus,
+} from "@coly/core";
+import type { ColyState, ShipmentState } from "@coly/worker/sync";
 
-const CARRIERS: Record<string, string> = {
+export const CARRIERS: Record<string, string> = {
   laposte: "La Poste",
   colissimo: "Colissimo",
   chronopost: "Chronopost",
@@ -18,6 +26,8 @@ const CARRIERS: Record<string, string> = {
   unknown: "Transporteur inconnu",
 };
 
+export const SOURCES: Record<string, string> = { laposte: "La Poste", ship24: "Ship24" };
+
 export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> = {
   ordered: { label: "Commandé", tone: "transit" },
   shipped: { label: "Expédié", tone: "transit" },
@@ -31,23 +41,57 @@ export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> =
 };
 
 /** « notification.undiz.com » → « Undiz ». */
-function merchantName(domain: string): string {
+export function merchantName(domain: string): string {
   const parts = domain.split(".");
   const name = parts.length >= 2 ? parts[parts.length - 2] : domain;
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : domain;
 }
 
-export function toHomeView(state: ColyState, now: Date): HomeView {
-  const shipments: HomeShipment[] = state.shipments.map((s) => {
+export const carrierName = (s: ShipmentState) =>
+  CARRIERS[s.candidate.carrier] ?? s.candidate.carrier;
+
+/** Arrivée au point de retrait, d'après les événements du transporteur. */
+export function availableSince(s: ShipmentState): string | undefined {
+  return s.snapshots
+    .flatMap((snap) => snap.events)
+    .filter((e) =>
+      /available_for_pickup|AG1|parcelshop|relais|retrait/i.test(`${e.code} ${e.label}`),
+    )
+    .map((e) => e.at)
+    .filter((at): at is string => Boolean(at))
+    .sort()[0];
+}
+
+export function timeline(s: ShipmentState): SourcedEvent[] {
+  return mergeTimeline(
+    s.snapshots.flatMap((snap) =>
+      snap.events.map((e) => {
+        const event: SourcedEvent = { source: snap.source, label: e.label };
+        if (e.at) event.at = e.at;
+        if (isMeaningfulPlace(e.location)) event.location = e.location;
+        if (e.courier) event.courier = e.courier;
+        return event;
+      }),
+    ),
+  );
+}
+
+export function toHomeView(state: ColyState, now: Date): HomeView & { archived: number } {
+  const active = state.shipments.filter((s) => !s.presumedDone);
+  const shipments: HomeShipment[] = active.map((s) => {
     const home: HomeShipment = {
       id: s.id,
       merchant: merchantName(s.merchant),
-      carrier: CARRIERS[s.candidate.carrier] ?? s.candidate.carrier,
+      carrier: carrierName(s),
       status: s.status,
     };
-    if (s.placeName) home.placeName = s.placeName;
+    const since = availableSince(s);
+    if (since) home.availableSince = since;
+    // Faute de nom de relais transmis par la source, on nomme le réseau plutôt que d'inventer.
+    if (s.status === "available_for_pickup")
+      home.placeName = s.placeName ?? `Point relais ${carrierName(s)}`;
     if (s.lastUpdate) home.lastUpdate = s.lastUpdate;
     return home;
   });
-  return buildHome(shipments, now);
+  return { ...buildHome(shipments, now), archived: state.shipments.length - active.length };
 }

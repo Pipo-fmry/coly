@@ -29,6 +29,13 @@ describe("decideMailRead", () => {
     expect(read("Fnac <news@fnac.com>", "Soldes : -50 % et livraison rapide").read).toBe(false);
   });
 
+  it("ne lit pas les demandes d'avis sur une commande", () => {
+    expect(read("Boutique <avis@boutique.fr>", "Donnez votre avis sur votre commande")).toEqual({
+      read: false,
+      reason: "feedback",
+    });
+  });
+
   it("ne lit pas ce qui n'est pas lié à une commande", () => {
     expect(read("Banque <info@banque.fr>", "Votre relevé de compte")).toEqual({
       read: false,
