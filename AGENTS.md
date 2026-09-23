@@ -17,7 +17,8 @@ pnpm install               # installe + active les hooks git (lefthook)
 pnpm check                 # lint + types + tests : doit passer avant toute PR
 pnpm lint:fix              # formatage et corrections auto (Biome)
 pnpm test:watch            # tests en continu
-pnpm web                   # webapp sur 127.0.0.1:3000 (téléphone : docs/guides/mobile-tailscale.md)
+pnpm web                   # webapp (build + serveur) sur 127.0.0.1:3000 — téléphone : docs/guides/mobile-tailscale.md
+pnpm web:dev               # webapp en mode développement (rechargement à chaud)
 pnpm web:demo              # webapp sur des colis fictifs
 pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md)
 ```

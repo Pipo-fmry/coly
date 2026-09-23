@@ -36,10 +36,25 @@ interface Part {
   headers?: { name: string; value: string }[];
 }
 
+const MAX_ATTEMPTS = 6;
+
+/** Appel Gmail avec attente exponentielle sur les limites de débit (429, 403 « quota exceeded »). */
 async function get<T>(token: string, path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${token}` } });
-  if (!response.ok) throw new Error(`Gmail ${response.status} sur ${path.split("?")[0]}`);
-  return (await response.json()) as T;
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(`${API}${path}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (response.ok) return (await response.json()) as T;
+    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+    const message = body.error?.message ?? "";
+    const rateLimited =
+      response.status === 429 || (response.status === 403 && /quota|rate limit/i.test(message));
+    if (!rateLimited || attempt >= MAX_ATTEMPTS)
+      throw new Error(`Gmail ${response.status} sur ${path.split("?")[0]} : ${message}`);
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const waitMs = retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 1000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
 }
 
 function collectBodies(part: Part, out: { html: string[]; plain: string[] }): void {
