@@ -31,6 +31,11 @@ Neutres (`neutral.*`), couleurs de statut (`status.*`) : voir le fichier de toke
 | `deadline` (ambre) | date limite proche |
 | `problem` (rouge) | incident |
 
+## Logo
+
+Piste **B, « le c qui attrape »** (choisie le 23/09/2026) : un « c » citron qui referme un colis sauge, sur fond forêt.
+Source : `apps/web/app/icon.svg` (favicon) et `apps/web/app/apple-icon.tsx` (écran d'accueil iOS).
+
 ## Typographie, espacements, formes
 
 - **Figtree** pour l'interface, **IBM Plex Mono** pour les codes de retrait. Dans l'app native : SF Pro sur Apple.
