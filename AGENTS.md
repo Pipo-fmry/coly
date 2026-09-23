@@ -34,7 +34,7 @@ pnpm spike                 # lit ta boîte Gmail et compare les sources de track
 
 1. **Le cœur ne dépend de rien.** `packages/core` n'importe ni SDK, ni `fetch`, ni base, ni `Date.now()` implicite (on passe l'heure en paramètre). Les fournisseurs vivent derrière des interfaces ([ADR 0003](docs/adr/0003-coeur-pur-et-adaptateurs.md)).
 2. **Le statut est dérivé**, jamais recopié d'une source ni stocké comme vérité ([ADR 0005](docs/adr/0005-statut-derive-evenements-append-only.md)).
-3. **Aucun corps d'email stocké, aucun corps d'email ni code de retrait dans les logs** ([ADR 0006](docs/adr/0006-aucun-corps-email-stocke.md)).
+3. **Ne lire et ne garder que l'indispensable** : tri sur les en-têtes avant de lire un email, aucun corps ni sujet stocké, liste blanche de champs persistés, rien de sensible dans les logs ([ADR 0006](docs/adr/0006-aucun-corps-email-stocke.md), [ADR 0013](docs/adr/0013-minimisation-promesse-produit.md)). Dans le doute, on ne lit pas.
 4. **Pas de secret dans le code** : tout passe par `.env.local` (voir `.env.example`), lu dans un seul module de config validé.
 5. **Pas de hex en dur dans l'UI** : on lit `@coly/ui` ; toute nouvelle paire texte/fond s'ajoute à `textPairs` (testée WCAG AA).
 6. **Pas de QR généré par Coly** : on affiche l'image ou le code fournis par le transporteur, tels quels.

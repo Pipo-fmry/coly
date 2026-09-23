@@ -97,6 +97,25 @@ export async function listMessageIds(token: string, query: string, max: number):
   return ids;
 }
 
+/** En-têtes seuls (expéditeur, sujet) : permet de décider sans lire le contenu (ADR 0013). */
+export async function getMessageHeader(
+  token: string,
+  id: string,
+): Promise<{ id: string; date: Date; from: string; subject: string }> {
+  const message = await get<{ id: string; internalDate: string; payload: Part }>(
+    token,
+    `/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`,
+  );
+  const header = (name: string) =>
+    message.payload.headers?.find((h) => h.name.toLowerCase() === name)?.value ?? "";
+  return {
+    id: message.id,
+    date: new Date(Number(message.internalDate)),
+    from: header("from"),
+    subject: header("subject"),
+  };
+}
+
 export async function getMessage(token: string, id: string): Promise<MailMessage> {
   const message = await get<{ id: string; threadId: string; internalDate: string; payload: Part }>(
     token,
