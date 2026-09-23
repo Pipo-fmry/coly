@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint et format (Biome)
+        run: pnpm exec biome ci .
+      - name: Types
+        run: pnpm typecheck
+      - name: Tests
+        run: pnpm test
+
+  # Job unique à rendre obligatoire dans la protection de branche : on peut ajouter des jobs sans toucher aux réglages.
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tous les jobs requis sont verts
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "Au moins un job requis a échoué." && exit 1
+          fi

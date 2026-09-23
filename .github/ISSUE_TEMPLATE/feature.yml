@@ -1,0 +1,20 @@
+name: Idée / fonctionnalité
+description: Un besoin utilisateur à couvrir
+labels: [enhancement]
+body:
+  - type: textarea
+    id: probleme
+    attributes:
+      label: Problème utilisateur
+      description: La situation vécue, pas la solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: Proposition
+  - type: dropdown
+    id: cas
+    attributes:
+      label: Cas d'usage lié (docs/product/vision.md)
+      options: [UC1 — lieu, UC2 — urgence, UC3 — regrouper les retraits, Autre]

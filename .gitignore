@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Coly ---
+!.env.example
+.DS_Store
+.claude/settings.local.json
+# Données locales du prototype (base, exports Gmail) : jamais dans git
+data/
+*.sqlite
+*.db
+# Emails réels : seules les fixtures anonymisées sont versionnées
+**/fixtures/raw/

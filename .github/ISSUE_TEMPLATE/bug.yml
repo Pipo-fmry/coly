@@ -1,0 +1,30 @@
+name: Bug
+description: Un comportement incorrect (statut faux, colis manquant, parsing raté…)
+labels: [bug]
+body:
+  - type: textarea
+    id: constat
+    attributes:
+      label: Constat
+      description: Ce que Coly affiche, et ce qui était attendu.
+    validations:
+      required: true
+  - type: dropdown
+    id: domaine
+    attributes:
+      label: Domaine
+      options: [Statut / réconciliation, Détection email, Point relais, Code de retrait, Interface, Autre]
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source de vérité
+      description: Ce que dit le transporteur final (site, email). Transporteur et marchand, sans données personnelles.
+  - type: checkboxes
+    id: donnees
+    attributes:
+      label: Données
+      options:
+        - label: Je n'ai collé ni email brut, ni adresse, ni numéro de suivi complet, ni code de retrait.
+          required: true
