@@ -12,6 +12,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
+  type CarrierEmailInfo,
   carrierTrackingUrl,
   decideMailRead,
   deriveStatus,
@@ -21,6 +22,7 @@ import {
   isMeaningfulPlace,
   isPresumedDone,
   type MailDecision,
+  parseCarrierEmail,
   routeFor,
   type StatusObservation,
   type TrackingCandidate,
@@ -36,7 +38,7 @@ import type { TrackingSnapshot } from "./tracking/types.ts";
 
 export const STATE_FILE = dataPath("state.json");
 export const SYNC_WINDOW_DAYS = 90;
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
 
 /** Ce qui est conservé d'un email lu : aucune donnée de contenu. */
@@ -46,16 +48,30 @@ export interface Sighting {
   messageId: string;
 }
 
+/** Ce qu'un email transporteur apprend sur un colis (données logistiques uniquement, ADR 0013). */
+export interface CarrierEmailFact {
+  messageId: string;
+  receivedAt: string;
+  kind: CarrierEmailInfo["kind"];
+  pickupPoint?: { name: string; address?: string };
+  availableOn?: string;
+  hasPickupQrCode: boolean;
+}
+
 export interface ShipmentState {
   id: string;
   candidate: TrackingCandidate;
   merchant: string;
+  /** Nom du marchand donné par le transporteur (ex. « Caats »), plus lisible que le domaine. */
+  merchantLabel?: string;
   sightings: Sighting[];
+  carrierEmails: CarrierEmailFact[];
   snapshots: TrackingSnapshot[];
   status: UserStatus | undefined;
   /** Colis ancien sans statut, présumé terminé : pas de quota dépensé (première installation). */
   presumedDone?: boolean;
   placeName?: string;
+  placeAddress?: string;
   trackingUrl?: string;
   lastUpdate?: string;
 }
@@ -121,6 +137,32 @@ function placeName(snapshots: readonly TrackingSnapshot[]): string | undefined {
     if (isMeaningfulPlace(pickup?.location)) return pickup?.location;
   }
   return undefined;
+}
+
+function emailObservations(row: ShipmentState): StatusObservation[] {
+  return row.carrierEmails.map((e) => ({ source: "email", status: e.kind, at: e.receivedAt }));
+}
+
+/** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015). */
+function refreshDerived(row: ShipmentState): void {
+  row.status = deriveStatus([...observations(row.snapshots), ...emailObservations(row)]);
+  // L'email transporteur donne le relais exact (nom + adresse) : il prime sur l'agrégateur.
+  const emailPlace = row.carrierEmails.findLast((e) => e.pickupPoint)?.pickupPoint;
+  if (emailPlace) {
+    row.placeName = emailPlace.name;
+    if (emailPlace.address) row.placeAddress = emailPlace.address;
+  } else {
+    const place = placeName(row.snapshots);
+    if (place) row.placeName = place;
+  }
+  const lastUpdate = [
+    ...row.snapshots.flatMap((s) => s.events.map((e) => e.at)),
+    ...row.carrierEmails.map((e) => e.receivedAt),
+  ]
+    .filter((at): at is string => Boolean(at))
+    .sort()
+    .at(-1);
+  if (lastUpdate) row.lastUpdate = lastUpdate;
 }
 
 function lastSeen(row: ShipmentState): string {
@@ -189,6 +231,17 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       messageId: message.id,
     };
     const candidates = detectTrackingNumbers(message.text, message.urls);
+    const carrierEmail = parseCarrierEmail({
+      from: message.from,
+      subject: header.subject,
+      text: message.text,
+    });
+    if (carrierEmail && !candidates.some((c) => c.trackingNumber === carrierEmail.trackingNumber))
+      candidates.push({
+        carrier: carrierEmail.carrier,
+        trackingNumber: carrierEmail.trackingNumber,
+        via: "carrier_email",
+      });
     // Le contenu de l'email n'est plus référencé au-delà de ce point.
     if (candidates.length === 0) {
       readWithoutNumber.push(sighting);
@@ -200,10 +253,23 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
         candidate,
         merchant: sighting.senderDomain,
         sightings: [],
+        carrierEmails: [],
         snapshots: [],
         status: undefined,
       };
       row.sightings.push(sighting);
+      if (carrierEmail?.trackingNumber === candidate.trackingNumber) {
+        const fact: CarrierEmailFact = {
+          messageId: message.id,
+          receivedAt: message.date.toISOString(),
+          kind: carrierEmail.kind,
+          hasPickupQrCode: carrierEmail.hasPickupQrCode,
+        };
+        if (carrierEmail.pickupPoint) fact.pickupPoint = carrierEmail.pickupPoint;
+        if (carrierEmail.availableOn) fact.availableOn = carrierEmail.availableOn;
+        row.carrierEmails.push(fact);
+        if (carrierEmail.merchant) row.merchantLabel = carrierEmail.merchant;
+      }
       // Un nouvel email sur un colis le réveille, même s'il était présumé terminé.
       delete row.presumedDone;
       rows.set(candidate.trackingNumber, row);
@@ -237,17 +303,8 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       counts.aggregatorCalls++;
       snapshots.push(await trackShip24(aggregatorKey, row.id));
     }
-    if (snapshots.length === 0) continue;
-    row.snapshots = snapshots;
-    row.status = deriveStatus(observations(row.snapshots));
-    const place = placeName(row.snapshots);
-    if (place) row.placeName = place;
-    const lastUpdate = row.snapshots
-      .flatMap((s) => s.events.map((e) => e.at))
-      .filter((at): at is string => Boolean(at))
-      .sort()
-      .at(-1);
-    if (lastUpdate) row.lastUpdate = lastUpdate;
+    if (snapshots.length > 0) row.snapshots = snapshots;
+    refreshDerived(row);
   }
 
   const state: ColyState = {

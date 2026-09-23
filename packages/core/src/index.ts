@@ -4,6 +4,7 @@
  * Voir docs/architecture/overview.md et docs/adr/0003, 0005.
  */
 
+export * from "./carrier-emails.ts";
 export * from "./carriers.ts";
 export * from "./home.ts";
 export * from "./mail-filter.ts";

@@ -26,7 +26,11 @@ export const CARRIERS: Record<string, string> = {
   unknown: "Transporteur inconnu",
 };
 
-export const SOURCES: Record<string, string> = { laposte: "La Poste", ship24: "Ship24" };
+export const SOURCES: Record<string, string> = {
+  laposte: "La Poste",
+  ship24: "Ship24",
+  email: "email transporteur",
+};
 
 export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> = {
   ordered: { label: "Commandé", tone: "transit" },
@@ -52,19 +56,42 @@ export const carrierName = (s: ShipmentState) =>
 
 /** Arrivée au point de retrait, d'après les événements du transporteur. */
 export function availableSince(s: ShipmentState): string | undefined {
-  return s.snapshots
-    .flatMap((snap) => snap.events)
-    .filter((e) =>
-      /available_for_pickup|AG1|parcelshop|relais|retrait/i.test(`${e.code} ${e.label}`),
-    )
-    .map((e) => e.at)
+  return [
+    ...s.snapshots
+      .flatMap((snap) => snap.events)
+      .filter((e) =>
+        /available_for_pickup|AG1|parcelshop|relais|retrait/i.test(`${e.code} ${e.label}`),
+      )
+      .map((e) => e.at),
+    ...s.carrierEmails.filter((e) => e.kind === "available_for_pickup").map((e) => e.receivedAt),
+  ]
     .filter((at): at is string => Boolean(at))
     .sort()[0];
 }
 
+/** Nom du marchand : celui donné par le transporteur s'il existe, sinon déduit du domaine. */
+export const displayMerchant = (s: ShipmentState) => s.merchantLabel ?? merchantName(s.merchant);
+
+/** Email transporteur contenant le QR code de retrait, le plus récent. */
+export const pickupQrEmail = (s: ShipmentState) =>
+  s.carrierEmails.findLast((e) => e.hasPickupQrCode);
+
+/** Ouvre l'email d'origine dans Gmail (le QR code y est affiché tel que le transporteur l'a envoyé). */
+export const gmailLink = (messageId: string) =>
+  `https://mail.google.com/mail/u/0/#all/${messageId}`;
+
 export function timeline(s: ShipmentState): SourcedEvent[] {
-  return mergeTimeline(
-    s.snapshots.flatMap((snap) =>
+  const fromEmails: SourcedEvent[] = s.carrierEmails.map((e) => ({
+    source: "email",
+    label:
+      e.kind === "available_for_pickup"
+        ? `Disponible au relais ${e.pickupPoint?.name ?? ""}`.trim()
+        : `En route vers le relais ${e.pickupPoint?.name ?? ""}${e.availableOn ? `, prévu le ${e.availableOn}` : ""}`.trim(),
+    at: e.receivedAt,
+  }));
+  return mergeTimeline([
+    ...fromEmails,
+    ...s.snapshots.flatMap((snap) =>
       snap.events.map((e) => {
         const event: SourcedEvent = { source: snap.source, label: e.label };
         if (e.at) event.at = e.at;
@@ -73,7 +100,7 @@ export function timeline(s: ShipmentState): SourcedEvent[] {
         return event;
       }),
     ),
-  );
+  ]);
 }
 
 export function toHomeView(state: ColyState, now: Date): HomeView & { archived: number } {
@@ -81,7 +108,7 @@ export function toHomeView(state: ColyState, now: Date): HomeView & { archived: 
   const shipments: HomeShipment[] = active.map((s) => {
     const home: HomeShipment = {
       id: s.id,
-      merchant: merchantName(s.merchant),
+      merchant: displayMerchant(s),
       carrier: carrierName(s),
       status: s.status,
     };

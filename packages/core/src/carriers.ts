@@ -21,7 +21,7 @@ export type DetectedCarrier =
 export interface TrackingCandidate {
   carrier: DetectedCarrier;
   trackingNumber: string;
-  via: "link" | "pattern";
+  via: "link" | "pattern" | "carrier_email";
 }
 
 interface LinkRule {

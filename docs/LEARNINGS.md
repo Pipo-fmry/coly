@@ -14,3 +14,6 @@
 | 2026-09-23 | Exclure promotions / réseaux sociaux / forums côté Gmail fait passer de 300 à 195 emails sur 90 jours | spike réel | tri côté serveur efficace ; le tri sur en-têtes reste trop permissif (192 lus sur 195) |
 | 2026-09-23 | Première synchro : 37 colis sur 90 jours, dont 30 anciens présumés terminés ; 7 appels Ship24 au lieu de 15+ | spike réel | la logique « première installation » économise le quota |
 | 2026-09-23 | La clé La Poste répond 403 « pas les droits » tant que l'abonnement à l'API Suivi n'est pas validé | spike réel | repli automatique sur Ship24 quand La Poste ne trouve rien |
+| 2026-09-23 | Les emails GLS France donnent le relais exact (nom + adresse), la date prévue, et un QR code de retrait ; le numéro GLS (8 caractères) n'était reconnu par aucun motif | colis Caats | lecteur d'emails transporteurs (gabarit GLS) ; l'email transporteur prime pour le lieu |
+| 2026-09-23 | L'email GLS « arrive bientôt » annonce le relais de destination avant l'arrivée | colis Caats | rend possible la suggestion « attendre pour tout récupérer » (UC3) |
+| 2026-09-23 | Le nom du marchand affiché est parfois le transporteur ou la plateforme (« Pickup », « Chronopost », « Shopifyemail ») ; deux numéros DPD/Chronopost quasi identiques (suffixe X) | spike réel | à traiter : résolution du marchand et réconciliation des numéros liés |

@@ -5,7 +5,9 @@ import { formatDate, formatDateTime, since } from "../../format";
 import {
   availableSince,
   carrierName,
-  merchantName,
+  displayMerchant,
+  gmailLink,
+  pickupQrEmail,
   SOURCES,
   STATUS_LABEL,
   timeline,
@@ -22,10 +24,21 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const status = shipment.status ? STATUS_LABEL[shipment.status] : undefined;
   const carrier = carrierName(shipment);
   const events = timeline(shipment);
-  const sources = shipment.snapshots.filter((s) => s.found);
+  const sources = [
+    ...new Set([
+      ...shipment.snapshots.filter((s) => s.found).map((s) => SOURCES[s.source] ?? s.source),
+      ...(shipment.carrierEmails.length > 0 ? [`email ${carrier}`] : []),
+    ]),
+  ];
   const arrived = availableSince(shipment);
+  const qrEmail = pickupQrEmail(shipment);
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
   const firstEmail = shipment.sightings.map((s) => s.date).sort()[0];
+  const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
+  const upcoming =
+    shipment.status !== "available_for_pickup"
+      ? shipment.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint)
+      : undefined;
 
   return (
     <main className="screen">
@@ -51,7 +64,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         <span className={`pill pill-${status?.tone ?? "done"}`}>
           {status?.label ?? "Statut inconnu"}
         </span>
-        <h1 className="title">{merchantName(shipment.merchant)}</h1>
+        <h1 className="title">{displayMerchant(shipment)}</h1>
         <p className="meta">
           {carrier} · <code>{shipment.id}</code>
         </p>
@@ -59,25 +72,65 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
 
       {sources.length > 0 && shipment.lastUpdate && (
         <p className="confirmed">
-          Selon {sources.map((s) => SOURCES[s.source] ?? s.source).join(" et ")}, dernier événement{" "}
-          {since(shipment.lastUpdate)}.
+          Selon {sources.join(" et ")}, dernière info {since(shipment.lastUpdate)}.
         </p>
       )}
 
       {shipment.status === "available_for_pickup" && (
         <section className="place">
-          <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
-          <div className="place-meta">
-            {arrived
-              ? `Arrivé le ${formatDate(arrived)} (${since(arrived)})`
-              : "Date d'arrivée inconnue"}
+          <div>
+            <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
+            {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
+            <div className="place-meta">
+              {arrived
+                ? `Arrivé le ${formatDate(arrived)} (${since(arrived)})`
+                : "Date d'arrivée inconnue"}
+            </div>
           </div>
           {!shipment.placeName && (
             <div className="place-meta">
-              La source ne transmet ni le nom ni l'adresse du relais : ils sont sur la page{" "}
+              Aucune source n'a encore donné le nom ni l'adresse du relais : ils sont sur la page{" "}
               {carrier}.
             </div>
           )}
+          <div className="place-actions">
+            {qrEmail && (
+              <a
+                className="button-primary"
+                href={gmailLink(qrEmail.messageId)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Afficher le QR code de retrait
+              </a>
+            )}
+            {placeQuery && (
+              <a
+                className="button-on-dark"
+                href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Itinéraire
+              </a>
+            )}
+          </div>
+          {qrEmail && (
+            <div className="place-meta">
+              QR code envoyé par {carrier} le {formatDate(qrEmail.receivedAt)}, ouvert tel quel dans
+              Gmail. À défaut : pièce d'identité.
+            </div>
+          )}
+        </section>
+      )}
+
+      {upcoming?.pickupPoint && (
+        <section className="empty">
+          <h2>Arrive au relais {upcoming.pickupPoint.name}</h2>
+          <p>
+            {upcoming.pickupPoint.address}
+            {upcoming.availableOn ? ` · prévu le ${upcoming.availableOn}` : ""}
+          </p>
         </section>
       )}
 
