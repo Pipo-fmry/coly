@@ -1,17 +1,17 @@
 import { readState } from "@coly/worker/sync";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDate, formatDateTime, since } from "../../format";
+import { formatDateTime, since } from "../../format";
 import {
   availableSince,
   carrierName,
   displayMerchant,
   gmailLink,
   pickupQrEmail,
-  SOURCES,
   STATUS_LABEL,
   timeline,
 } from "../../view-model";
+import { TruthCheck } from "./truth-check";
 
 export const dynamic = "force-dynamic";
 
@@ -24,16 +24,9 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const status = shipment.status ? STATUS_LABEL[shipment.status] : undefined;
   const carrier = carrierName(shipment);
   const events = timeline(shipment);
-  const sources = [
-    ...new Set([
-      ...shipment.snapshots.filter((s) => s.found).map((s) => SOURCES[s.source] ?? s.source),
-      ...(shipment.carrierEmails.length > 0 ? [`email ${carrier}`] : []),
-    ]),
-  ];
   const arrived = availableSince(shipment);
   const qrEmail = pickupQrEmail(shipment);
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
-  const firstEmail = shipment.sightings.map((s) => s.date).sort()[0];
   const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
   const upcoming =
     shipment.status !== "available_for_pickup"
@@ -70,29 +63,13 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         </p>
       </header>
 
-      {sources.length > 0 && shipment.lastUpdate && (
-        <p className="confirmed">
-          Selon {sources.join(" et ")}, dernière info {since(shipment.lastUpdate)}.
-        </p>
-      )}
-
       {shipment.status === "available_for_pickup" && (
         <section className="place">
           <div>
             <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
             {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
-            <div className="place-meta">
-              {arrived
-                ? `Arrivé le ${formatDate(arrived)} (${since(arrived)})`
-                : "Date d'arrivée inconnue"}
-            </div>
+            {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
           </div>
-          {!shipment.placeName && (
-            <div className="place-meta">
-              Aucune source n'a encore donné le nom ni l'adresse du relais : ils sont sur la page{" "}
-              {carrier}.
-            </div>
-          )}
           <div className="place-actions">
             {qrEmail && (
               <a
@@ -101,7 +78,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Afficher le QR code de retrait
+                QR code de retrait
               </a>
             )}
             {placeQuery && (
@@ -115,12 +92,6 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
               </a>
             )}
           </div>
-          {qrEmail && (
-            <div className="place-meta">
-              QR code envoyé par {carrier} le {formatDate(qrEmail.receivedAt)}, ouvert tel quel dans
-              Gmail. À défaut : pièce d'identité.
-            </div>
-          )}
         </section>
       )}
 
@@ -134,6 +105,8 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         </section>
       )}
 
+      <TruthCheck id={shipment.id} shown={shipment.status ?? null} />
+
       {shipment.trackingUrl && (
         <a
           className="button-secondary"
@@ -141,28 +114,21 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
           target="_blank"
           rel="noopener noreferrer"
         >
-          Voir le suivi sur le site {carrier}
+          Suivi {carrier}
         </a>
       )}
 
       <section className="section">
         <h2 className="section-title">Trajet</h2>
         {events.length === 0 ? (
-          <p className="meta">Aucun événement transporteur pour l'instant.</p>
+          <p className="meta">Aucun événement.</p>
         ) : (
           <ol className="timeline">
             {events.map((e) => (
               <li key={`${e.at}-${e.label}`}>
                 <span className="timeline-label">{e.label}</span>
                 <span className="timeline-meta">
-                  {[
-                    e.at && formatDateTime(e.at),
-                    e.location,
-                    e.courier?.toUpperCase(),
-                    SOURCES[e.source],
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[e.at && formatDateTime(e.at), e.location].filter(Boolean).join(" · ")}
                 </span>
               </li>
             ))}
@@ -170,22 +136,14 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         )}
       </section>
 
-      <section className="list detail-facts">
-        <div className="fact">
-          <span className="meta">Premier email</span>
-          <span>{firstEmail ? formatDate(firstEmail) : "—"}</span>
-        </div>
-        <div className="fact">
-          <span className="meta">Expéditeur</span>
-          <span>{shipment.merchant}</span>
-        </div>
-        {related.length > 0 && (
+      {related.length > 0 && (
+        <section className="list detail-facts">
           <div className="fact">
             <span className="meta">Numéros liés</span>
             <span>{related.join(", ")}</span>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </main>
   );
 }

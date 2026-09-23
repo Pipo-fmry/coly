@@ -8,6 +8,13 @@
 Sobre, lisible, rassurant — dans l'esprit Apple et Airbnb : beaucoup d'air, grands titres, cartes douces,
 une seule action principale par écran. **Le vert est un accent, pas un décor** : 80 % de l'interface vit sur des neutres chauds.
 
+## Règles de sobriété
+
+- **Pas de phrase explicative dans l'interface** (« selon telle source », « Coly a lu… », « la source ne transmet pas… ») : des faits et des actions, rien d'autre.
+- **Une carte = une cible** : toute carte ou ligne est cliquable dans son ensemble.
+- Libellés d'action courts : « QR code de retrait », « Itinéraire », « Suivi GLS ».
+- La transparence (ce que Coly a lu, sources) vit dans une page dédiée « Confidentialité », jamais sur l'accueil ni le détail.
+
 ## Couleurs
 
 | Token | Hex | Usage | Interdit |

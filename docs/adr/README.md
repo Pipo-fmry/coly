@@ -14,9 +14,11 @@ Une décision structurante = un fichier, numéroté, jamais réécrit une fois a
 | [0007](0007-prototype-local-rafraichissement-manuel.md) | Prototype local, rafraîchissement manuel | Accepté |
 | [0008](0008-pwa-avant-app-native.md) | PWA avant app native | Accepté |
 | [0009](0009-branche-main-unique.md) | Branche `main` unique, PR courtes | Accepté |
-| [0010](0010-ia-en-fallback-derriere-interface.md) | IA en fallback derrière une interface, OmniRoute hors prod | Accepté |
+| [0010](0010-ia-en-fallback-derriere-interface.md) | IA en fallback derrière une interface, OmniRoute hors prod | Précisé par 0017 |
 | [0011](0011-graphify-reporte.md) | Graphify reporté | Accepté |
 | [0012](0012-outillage-qualite.md) | Outillage qualité : Biome, Vitest, Lefthook, Ponytail, CI sécurité | Accepté |
 | [0013](0013-minimisation-promesse-produit.md) | Ne lire et ne garder que l'indispensable : une promesse produit | Accepté |
 | [0014](0014-acces-mobile-prive-tailscale.md) | Accès mobile privé via Tailscale, pas d'URL publique | Accepté |
 | [0015](0015-information-la-plus-juste.md) | L'information la plus juste, d'où qu'elle vienne | Accepté |
+| [0016](0016-faits-et-moteur-de-fusion.md) | Faits typés et moteur de fusion unique | Accepté |
+| [0017](0017-extraction-generique-des-emails.md) | Extraction générique des emails : standards, puis IA avec garde-fous | Accepté |

@@ -18,7 +18,8 @@
     "spike": "pnpm --filter @coly/worker spike",
     "web": "pnpm --filter @coly/web build && pnpm --filter @coly/web start",
     "web:demo": "pnpm --filter @coly/web demo",
-    "web:dev": "pnpm --filter @coly/web dev"
+    "web:dev": "pnpm --filter @coly/web dev",
+    "coverage": "pnpm --filter @coly/worker coverage"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

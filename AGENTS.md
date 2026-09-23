@@ -20,6 +20,7 @@ pnpm test:watch            # tests en continu
 pnpm web                   # webapp (build + serveur) sur 127.0.0.1:3000 — téléphone : docs/guides/mobile-tailscale.md
 pnpm web:dev               # webapp en mode développement (rechargement à chaud)
 pnpm web:demo              # webapp sur des colis fictifs
+pnpm coverage              # rapport de couverture (docs/plan/roadmap.md) : on décide sur ces chiffres
 pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md)
 ```
 
@@ -42,6 +43,13 @@ pnpm spike                 # lit ta boîte Gmail et compare les sources de track
 5. **Pas de hex en dur dans l'UI** : on lit `@coly/ui` ; toute nouvelle paire texte/fond s'ajoute à `textPairs` (testée WCAG AA).
 6. **Pas de QR généré par Coly** : on affiche l'image ou le code fournis par le transporteur, tels quels.
 7. **Moins de code** : réutiliser la stdlib, la plateforme et l'existant avant d'écrire ou d'ajouter une dépendance (plugin Ponytail activé).
+
+## Garde-fous contre le bricolage ([plan](docs/plan/roadmap.md))
+
+- **Aucun nom de transporteur ou de marchand dans le moteur ni dans l'app** : ce savoir vit dans des fournisseurs déclarés ([ADR 0016](docs/adr/0016-faits-et-moteur-de-fusion.md)).
+- **Pas de correctif sans cas de test qui échoue d'abord**, et `pnpm coverage` ne doit jamais régresser.
+- **On décide sur les indicateurs de couverture**, jamais sur un colis isolé.
+- Emails : standards puis IA avec garde-fous, pas de gabarit écrit à la main comme base ([ADR 0017](docs/adr/0017-extraction-generique-des-emails.md)).
 
 ## Flux de travail
 
