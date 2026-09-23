@@ -36,3 +36,11 @@ describe("decideMailRead", () => {
     });
   });
 });
+
+describe("decideMailRead — robustesse", () => {
+  it("reste rapide sur un en-tête hostile très long", () => {
+    const start = performance.now();
+    decideMailRead({ from: `a@${"9".repeat(50_000)}.fr`, subject: "9".repeat(50_000) });
+    expect(performance.now() - start).toBeLessThan(50);
+  });
+});

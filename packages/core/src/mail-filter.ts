@@ -22,13 +22,16 @@ const TRANSACTIONAL_SUBJECT =
 
 /** Signaux marketing : « livraison offerte », remises, soldes… jamais lus, même avec un mot-clé transactionnel. */
 const MARKETING_SUBJECT =
-  /(livraison (offerte|gratuite)|frais de port offerts|-?\d+ ?%|soldes|promo|code promo|black friday|newsletter|offre|jusqu'à|derniers jours|vente privée|nouveautés|découvrez)/i;
+  /(livraison (offerte|gratuite)|frais de port offerts|\d{1,3} ?%|soldes|promo|code promo|black friday|newsletter|offre|jusqu'à|derniers jours|vente privée|nouveautés|découvrez)/i;
+
+const MAX_HEADER_LENGTH = 300;
 
 export function decideMailRead(header: MailHeader): MailDecision {
-  const from = header.from.trim();
+  // En-têtes venant de tiers : longueur bornée pour garder les regex en temps linéaire.
+  const from = header.from.trim().slice(0, MAX_HEADER_LENGTH);
+  const subject = header.subject.slice(0, MAX_HEADER_LENGTH);
   if (CARRIER_SENDERS.test(from)) return { read: true, reason: "carrier_sender" };
-  if (MARKETING_SUBJECT.test(header.subject)) return { read: false, reason: "marketing" };
-  if (TRANSACTIONAL_SUBJECT.test(header.subject))
-    return { read: true, reason: "transactional_subject" };
+  if (MARKETING_SUBJECT.test(subject)) return { read: false, reason: "marketing" };
+  if (TRANSACTIONAL_SUBJECT.test(subject)) return { read: true, reason: "transactional_subject" };
   return { read: false, reason: "not_transactional" };
 }
