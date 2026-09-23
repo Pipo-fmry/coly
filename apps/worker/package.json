@@ -1,0 +1,13 @@
+{
+  "name": "@coly/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "spike": "node --env-file-if-exists=../../.env.local src/spike.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@coly/core": "workspace:*"
+  }
+}

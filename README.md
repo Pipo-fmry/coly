@@ -27,7 +27,7 @@ pnpm check
 packages/core   domaine pur (modèle, réconciliation, statut, urgence, lieux)
 packages/ui     design system (tokens + composants)
 apps/web        PWA — à venir
-apps/worker     ingestion et tracking — à venir
+apps/worker     ingestion Gmail et tracking (spike : pnpm spike)
 docs/           produit, architecture, décisions (ADR), sécurité, design, recherche
 ```
 
@@ -41,4 +41,5 @@ docs/           produit, architecture, décisions (ADR), sécurité, design, rec
 | Design system | [docs/design/design-system.md](docs/design/design-system.md) |
 | Sécurité | [SECURITY.md](SECURITY.md) · [modèle de menaces](docs/security/threat-model.md) |
 | Investigation initiale | [docs/research/investigation.md](docs/research/investigation.md) |
+| Tester sur sa boîte Gmail | [docs/guides/spike-gmail.md](docs/guides/spike-gmail.md) |
 | Contribuer | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) |

@@ -14,7 +14,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "spike": "pnpm --filter @coly/worker spike"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

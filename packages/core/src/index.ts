@@ -4,6 +4,8 @@
  * Voir docs/architecture/overview.md et docs/adr/0003, 0005.
  */
 
+export * from "./carriers.ts";
+
 /** D'où vient une information. Toujours portée par la donnée (cf. provenance). */
 export type SourceType = "email" | "carrier_api" | "aggregator" | "user";
 

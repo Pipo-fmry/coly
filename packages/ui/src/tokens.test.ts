@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { contrastRatio } from "./contrast";
-import { brand, neutral, textPairs } from "./tokens";
+import { contrastRatio } from "./contrast.ts";
+import { brand, neutral, textPairs } from "./tokens.ts";
 
 describe("contrastRatio", () => {
   it("donne 21:1 pour noir sur blanc", () => {
