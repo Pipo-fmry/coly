@@ -1,0 +1,28 @@
+# Hooks git locaux. Installés automatiquement par `pnpm install` (script prepare).
+# La CI rejoue les mêmes vérifications : ces hooks servent à échouer plus tôt, pas à remplacer la CI.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{ts,tsx,js,jsx,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    - name: gitleaks
+      # Scan des secrets sur les fichiers indexés. Ignoré (avec avertissement) si gitleaks n'est pas installé.
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks git --staged --redact --no-banner
+        else
+          echo "⚠️  gitleaks absent (brew install gitleaks) : scan de secrets local ignoré, la CI le fera."
+        fi
+
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      # Format attendu : type(portée optionnelle): description — ex. "feat(core): statut dérivé"
+      run: |
+        head -n1 {1} | grep -Eq '^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([a-z0-9-]+\))?!?: .+' || {
+          echo "Message de commit invalide. Format : type(portée): description (voir CONTRIBUTING.md)"
+          exit 1
+        }

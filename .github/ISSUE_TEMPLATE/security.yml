@@ -1,0 +1,15 @@
+name: Amélioration de sécurité (non sensible)
+description: Durcissement, dette sécurité connue. Pour une faille exploitable, utiliser le signalement privé.
+labels: [security]
+body:
+  - type: textarea
+    id: sujet
+    attributes:
+      label: Sujet
+      description: Quel actif (token Gmail, codes, données perso, dépendances…) et quel risque.
+    validations:
+      required: true
+  - type: textarea
+    id: parade
+    attributes:
+      label: Parade proposée
