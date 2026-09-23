@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // Packages internes publiés en sources TypeScript (ADR 0002).
   transpilePackages: ["@coly/core", "@coly/ui", "@coly/worker"],
   // Accès depuis le téléphone via Tailscale (réseau privé), jamais une URL publique.
-  allowedDevOrigins: ["*.ts.net"],
+  allowedDevOrigins: ["**.ts.net"],
   poweredByHeader: false,
   async headers() {
     return [

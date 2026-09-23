@@ -9,3 +9,4 @@
 | 2026-09-23 | traiter un numéro de tracking comme un colis | un colis peut changer de transporteur et de numéro | un `Shipment` regroupe plusieurs `TrackingIdentity` |
 | 2026-09-23 | générer un QR à partir d'un code de retrait | format attendu par le terminal inconnu, risque de colis non remis | afficher l'image ou le code fournis, tels quels |
 | 2026-09-23 | écrire du texte en sauge ou citron sur fond clair | contraste 2,6:1 et 1,2:1, illisible | réserver au décor ; texte en forêt, pin ou mousse |
+| 2026-09-23 | servir la webapp en mode dev pour l'iPhone | Next bloque ses ressources dev depuis une origine non locale (`*.ts.net`) : bouton Actualiser inerte | `pnpm web` (build + start) pour le téléphone ; `pnpm web:dev` seulement en local |

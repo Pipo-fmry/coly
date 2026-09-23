@@ -16,8 +16,9 @@
     "test:watch": "vitest",
     "prepare": "lefthook install",
     "spike": "pnpm --filter @coly/worker spike",
-    "web": "pnpm --filter @coly/web dev",
-    "web:demo": "pnpm --filter @coly/web demo"
+    "web": "pnpm --filter @coly/web build && pnpm --filter @coly/web start",
+    "web:demo": "pnpm --filter @coly/web demo",
+    "web:dev": "pnpm --filter @coly/web dev"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
