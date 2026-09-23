@@ -8,6 +8,10 @@ updates:
       outillage-dev:
         dependency-type: development
     open-pull-requests-limit: 5
+    ignore:
+      # Les types Node suivent la version de Node utilisée (.nvmrc), pas la dernière publiée.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
