@@ -43,6 +43,13 @@ pnpm spike                 # lit ta boîte Gmail et compare les sources de track
 6. **Pas de QR généré par Coly** : on affiche l'image ou le code fournis par le transporteur, tels quels.
 7. **Moins de code** : réutiliser la stdlib, la plateforme et l'existant avant d'écrire ou d'ajouter une dépendance (plugin Ponytail activé).
 
+## Garde-fous contre le bricolage ([plan](docs/plan/roadmap.md))
+
+- **Aucun nom de transporteur ou de marchand dans le moteur ni dans l'app** : ce savoir vit dans des fournisseurs déclarés ([ADR 0016](docs/adr/0016-faits-et-moteur-de-fusion.md)).
+- **Pas de correctif sans cas de test qui échoue d'abord**, et `pnpm coverage` ne doit jamais régresser.
+- **On décide sur les indicateurs de couverture**, jamais sur un colis isolé.
+- Emails : standards puis IA avec garde-fous, pas de gabarit écrit à la main comme base ([ADR 0017](docs/adr/0017-extraction-generique-des-emails.md)).
+
 ## Flux de travail
 
 1. Lire la doc concernée (`docs/architecture`, ADR liés) avant de modifier un module.
