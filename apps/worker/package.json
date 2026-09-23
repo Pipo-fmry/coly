@@ -9,5 +9,10 @@
   },
   "dependencies": {
     "@coly/core": "workspace:*"
+  },
+  "exports": {
+    "./sync": "./src/sync.ts",
+    "./oauth": "./src/gmail/oauth.ts",
+    "./config": "./src/config.ts"
   }
 }

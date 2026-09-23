@@ -5,11 +5,15 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+import { dataPath } from "../paths.ts";
 import { readSecret, writeSecret } from "../secret-store.ts";
 
 const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const TOKEN_FILE = "data/gmail-refresh-token.enc";
+const TOKEN_FILE = dataPath("gmail-refresh-token.enc");
+
+/** Levée quand un consentement Google est nécessaire mais impossible ici (ex. appel depuis la webapp). */
+export class ConsentRequiredError extends Error {}
 
 interface TokenResponse {
   access_token?: string;
@@ -95,11 +99,16 @@ async function authorize(creds: Credentials, onUrl: (url: string) => void): Prom
 export async function getAccessToken(
   creds: Credentials,
   encryptionKey: Buffer,
-  onUrl: (url: string) => void,
+  /** Absent : pas de consentement interactif possible, on lève ConsentRequiredError. */
+  onUrl?: (url: string) => void,
 ): Promise<string> {
   let refreshToken = await readSecret(TOKEN_FILE, encryptionKey);
   for (let attempt = 0; attempt < 2; attempt++) {
     if (!refreshToken) {
+      if (!onUrl)
+        throw new ConsentRequiredError(
+          "Autorisation Gmail absente ou expirée : lance `pnpm spike` sur le Mac pour la renouveler.",
+        );
       refreshToken = await authorize(creds, onUrl);
       await writeSecret(TOKEN_FILE, encryptionKey, refreshToken);
     }

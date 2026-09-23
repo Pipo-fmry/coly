@@ -26,7 +26,7 @@ pnpm check
 ```
 packages/core   domaine pur (modèle, réconciliation, statut, urgence, lieux)
 packages/ui     design system (tokens + composants)
-apps/web        PWA — à venir
+apps/web        PWA Next.js (pnpm web, pnpm web:demo)
 apps/worker     ingestion Gmail et tracking (spike : pnpm spike)
 docs/           produit, architecture, décisions (ADR), sécurité, design, recherche
 ```
@@ -42,4 +42,5 @@ docs/           produit, architecture, décisions (ADR), sécurité, design, rec
 | Sécurité | [SECURITY.md](SECURITY.md) · [modèle de menaces](docs/security/threat-model.md) |
 | Investigation initiale | [docs/research/investigation.md](docs/research/investigation.md) |
 | Tester sur sa boîte Gmail | [docs/guides/spike-gmail.md](docs/guides/spike-gmail.md) |
+| Ouvrir Coly sur son iPhone | [docs/guides/mobile-tailscale.md](docs/guides/mobile-tailscale.md) |
 | Contribuer | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) |

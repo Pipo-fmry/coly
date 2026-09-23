@@ -1,0 +1,189 @@
+{
+  "updatedAt": "2026-09-23T09:14:12.242Z",
+  "counts": {
+    "matchedQuery": 42,
+    "bodiesRead": 17,
+    "skipped": {
+      "marketing": 21,
+      "not_transactional": 4
+    },
+    "aggregatorCalls": 9
+  },
+  "shipments": [
+    {
+      "id": "XW000000001FR",
+      "candidate": {
+        "carrier": "chronopost",
+        "trackingNumber": "XW000000001FR",
+        "via": "link"
+      },
+      "merchant": "undiz.com",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "undiz.com",
+          "messageId": "demo-XW000000001FR"
+        }
+      ],
+      "snapshots": [],
+      "status": "available_for_pickup",
+      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "placeName": "Shop N Food"
+    },
+    {
+      "id": "00000002",
+      "candidate": {
+        "carrier": "mondial_relay",
+        "trackingNumber": "00000002",
+        "via": "link"
+      },
+      "merchant": "vinted.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "vinted.fr",
+          "messageId": "demo-00000002"
+        }
+      ],
+      "snapshots": [],
+      "status": "available_for_pickup",
+      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "placeName": "Shop N Food"
+    },
+    {
+      "id": "6A00000000003",
+      "candidate": {
+        "carrier": "colissimo",
+        "trackingNumber": "6A00000000003",
+        "via": "link"
+      },
+      "merchant": "zara.com",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "zara.com",
+          "messageId": "demo-6A00000000003"
+        }
+      ],
+      "snapshots": [],
+      "status": "available_for_pickup",
+      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "placeName": "Shop N Food"
+    },
+    {
+      "id": "00000000000004",
+      "candidate": {
+        "carrier": "dpd",
+        "trackingNumber": "00000000000004",
+        "via": "link"
+      },
+      "merchant": "zalando.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "zalando.fr",
+          "messageId": "demo-00000000000004"
+        }
+      ],
+      "snapshots": [],
+      "status": "available_for_pickup",
+      "lastUpdate": "2026-09-23T06:20:12.245Z",
+      "placeName": "Tabac du Prado"
+    },
+    {
+      "id": "00000000000005",
+      "candidate": {
+        "carrier": "colis_prive",
+        "trackingNumber": "00000000000005",
+        "via": "link"
+      },
+      "merchant": "shein.com",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "shein.com",
+          "messageId": "demo-00000000000005"
+        }
+      ],
+      "snapshots": [],
+      "status": "problem",
+      "lastUpdate": "2026-09-23T06:20:12.245Z"
+    },
+    {
+      "id": "6A00000000006",
+      "candidate": {
+        "carrier": "colissimo",
+        "trackingNumber": "6A00000000006",
+        "via": "link"
+      },
+      "merchant": "decathlon.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "decathlon.fr",
+          "messageId": "demo-6A00000000006"
+        }
+      ],
+      "snapshots": [],
+      "status": "out_for_delivery",
+      "lastUpdate": "2026-09-23T06:20:12.245Z"
+    },
+    {
+      "id": "XW000000007FR",
+      "candidate": {
+        "carrier": "chronopost",
+        "trackingNumber": "XW000000007FR",
+        "via": "link"
+      },
+      "merchant": "fnac.com",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "fnac.com",
+          "messageId": "demo-XW000000007FR"
+        }
+      ],
+      "snapshots": [],
+      "status": "in_transit",
+      "lastUpdate": "2026-09-23T06:20:12.245Z"
+    },
+    {
+      "id": "TBA000000000008",
+      "candidate": {
+        "carrier": "amazon_logistics",
+        "trackingNumber": "TBA000000000008",
+        "via": "link"
+      },
+      "merchant": "amazon.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "amazon.fr",
+          "messageId": "demo-TBA000000000008"
+        }
+      ],
+      "snapshots": [],
+      "lastUpdate": "2026-09-23T06:20:12.245Z"
+    },
+    {
+      "id": "6A00000000009",
+      "candidate": {
+        "carrier": "colissimo",
+        "trackingNumber": "6A00000000009",
+        "via": "link"
+      },
+      "merchant": "sephora.fr",
+      "sightings": [
+        {
+          "date": "2026-09-21",
+          "senderDomain": "sephora.fr",
+          "messageId": "demo-6A00000000009"
+        }
+      ],
+      "snapshots": [],
+      "status": "delivered",
+      "lastUpdate": "2026-09-23T06:20:12.245Z"
+    }
+  ],
+  "readWithoutNumber": []
+}

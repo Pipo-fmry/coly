@@ -52,7 +52,7 @@ Pour chaque numéro : date et expéditeur du premier email, transporteur détect
 (statut de la source, dernier événement, transporteur vu, partenaire / point de retrait, numéros liés).
 En fin de rapport : les emails filtrés **sans** numéro détecté, à regarder pour améliorer la détection.
 
-Le détail est écrit dans `apps/worker/data/spike-*.json` (local, ignoré par git).
+Le détail est écrit dans `data/state.json` (local, ignoré par git).
 
 **Ce qu'on cherche** (à reporter dans `docs/LEARNINGS.md`) :
 - colis ratés par la détection, et pourquoi (numéro dans une image, lien marque blanche…) ;
@@ -63,4 +63,4 @@ Le détail est écrit dans `apps/worker/data/spike-*.json` (local, ignoré par g
 ## Révoquer l'accès
 
 [myaccount.google.com/permissions](https://myaccount.google.com/permissions) → « Coly (perso) » → Supprimer l'accès,
-puis supprimer `apps/worker/data/gmail-refresh-token.enc`.
+puis supprimer `data/gmail-refresh-token.enc`.

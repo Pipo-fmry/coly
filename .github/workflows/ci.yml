@@ -30,6 +30,10 @@ jobs:
         run: pnpm typecheck
       - name: Tests
         run: pnpm test
+      - name: Build de la webapp
+        run: pnpm --filter @coly/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
 
   # Job unique à rendre obligatoire dans la protection de branche : on peut ajouter des jobs sans toucher aux réglages.
   ci-ok:
