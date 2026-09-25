@@ -6,7 +6,6 @@ const now = new Date("2026-09-23T12:00:00Z");
 
 const shipment = (s: Partial<ShipmentState> & { id: string; carrier: string }): ShipmentState => ({
   candidate: { carrier: s.carrier as never, trackingNumber: s.id, via: "pattern" },
-  merchant: "exemple.fr",
   sightings: [],
   carrierEmails: [],
   snapshots: [],
@@ -37,6 +36,7 @@ describe("computeCoverage", () => {
         carrier: "gls",
         status: "available_for_pickup",
         placeName: "RELAIS",
+        merchant: { value: "Caats", confidence: "certain", sources: ["email transporteur"] },
         placeAddress: "1 RUE X 13006 Marseille",
         lastUpdate: "2026-09-23T10:00:00Z",
         carrierEmails: [
@@ -47,7 +47,11 @@ describe("computeCoverage", () => {
             hasPickupQrCode: true,
           },
         ],
-        pickup: { messageId: "m", image: { file: "A", mimeType: "image/png" } },
+        pickup: {
+          messageId: "m",
+          receivedAt: "2026-09-23T10:00:00Z",
+          image: { file: "A-m", mimeType: "image/png" },
+        },
       }),
       shipment({
         id: "B",
@@ -74,6 +78,10 @@ describe("computeCoverage", () => {
   it("exclut les colis présumés terminés et les compte à part", () => {
     expect(report.global.active).toBe(4);
     expect(report.presumedDone).toBe(1);
+  });
+
+  it("mesure le marchand connu (fusionné à la synchro)", () => {
+    expect(report.global.merchant).toEqual({ hits: 1, total: 4 });
   });
 
   it("mesure statut connu et statut juste (sur les seuls colis vérifiés)", () => {

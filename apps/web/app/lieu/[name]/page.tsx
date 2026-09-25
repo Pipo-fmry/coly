@@ -2,7 +2,7 @@ import { readState } from "@coly/worker/sync";
 import { notFound } from "next/navigation";
 import { BackLink } from "../../back-link";
 import { ShipmentRow } from "../../shipment-row";
-import { toHomeView } from "../../view-model";
+import { placeLine, placeQuery, toHomeView } from "../../view-model";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +15,9 @@ export default async function PlaceDetail({ params }: { params: Promise<{ name: 
     : undefined;
   if (!state || !place) notFound();
 
-  const address = state.shipments.find(
-    (s) => s.placeName === place.name && s.placeAddress,
-  )?.placeAddress;
-  const query = [place.name, address].filter(Boolean).join(" ");
+  const here = state.shipments.find((s) => s.placeName === place.name && placeLine(s));
+  const address = here && placeLine(here);
+  const query = here ? placeQuery(here) : place.name;
 
   return (
     <main className="screen">

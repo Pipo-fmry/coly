@@ -71,3 +71,23 @@ export function isPresumedDone(
 ): boolean {
   return !hasStatus && daysSince(lastSeen, now) > maxAgeDays;
 }
+
+/**
+ * Certains transporteurs écrivent le lieu en tête du libellé (« MARSEILLE - FR - SHOP N FOOD, Available at
+ * retrieval point ») au lieu du champ prévu. On le range à sa place, une fois, à la lecture de la source.
+ * Seulement pour un préfixe en capitales : une phrase ordinaire (« Votre colis est livré, merci ») reste intacte.
+ */
+export function normalizeEvent<E extends { label: string; location?: string }>(event: E): E {
+  if (event.location) return event;
+  const [, prefix, rest] = /^([^,]{3,60}),\s*(\S.*)$/.exec(event.label) ?? [];
+  const letters = prefix?.replace(/[^\p{L}]/gu, "") ?? "";
+  if (!prefix || !rest || letters.length < 3 || letters !== letters.toUpperCase()) return event;
+  return { ...event, label: rest, location: prefix.trim() };
+}
+
+/** « MARSEILLE - FR - SHOP N  FOOD » → relais « SHOP N FOOD » à Marseille ; sinon le nom tel quel. */
+export function parseEventPlace(location: string): { name: string; locality?: string } {
+  const clean = location.replace(/\s+/g, " ").trim();
+  const [, locality, name] = /^(.+?) - [A-Z]{2} - (.+)$/.exec(clean) ?? [];
+  return locality && name ? { name, locality } : { name: clean };
+}

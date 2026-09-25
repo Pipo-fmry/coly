@@ -2,7 +2,7 @@
 
 import type { UserStatus } from "@coly/core";
 import { recordGroundTruth } from "@coly/worker/ground-truth";
-import { readState } from "@coly/worker/sync";
+import { findShipment } from "@coly/worker/sync";
 
 const STATUSES = new Set<UserStatus>([
   "ordered",
@@ -27,7 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Requête invalide." }, { status: 400 });
 
   // On n'accepte qu'un colis connu, et le statut affiché est relu côté serveur (pas celui du client).
-  const shipment = (await readState())?.shipments.find((s) => s.id === body.id);
+  const shipment = await findShipment(body.id);
   if (!shipment) return Response.json({ error: "Colis inconnu." }, { status: 404 });
 
   await recordGroundTruth(shipment.id, {

@@ -6,6 +6,7 @@
 
 export * from "./carrier-emails.ts";
 export * from "./carriers.ts";
+export * from "./facts.ts";
 export * from "./home.ts";
 export * from "./mail-filter.ts";
 export * from "./pickup.ts";

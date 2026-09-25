@@ -41,13 +41,38 @@ export function decideMailRead(header: MailHeader): MailDecision {
   return { read: false, reason: "not_transactional" };
 }
 
-/** Marchand : premier expéditeur qui n'est pas un transporteur (ceux-là écrivent pour le compte d'un autre). */
-export const merchantSender = <T extends { senderDomain: string }>(
-  senders: readonly T[],
-): T | undefined => senders.find((s) => !CARRIER_SENDERS.test(`@${s.senderDomain}`));
+/** Domaine d'un transporteur : ses emails parlent d'un colis pour le compte d'un marchand. */
+export const isCarrierDomain = (domain: string): boolean => CARRIER_SENDERS.test(`@${domain}`);
+
+/** Messageries personnelles : l'expéditeur est une personne (un proche qui transfère un colis), pas un marchand. */
+const PERSONAL_MAIL =
+  /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|proton|protonmail|orange|wanadoo|free|sfr|neuf|bbox|laposte)\.[a-z.]+$/i;
+
+export const isPersonalMailDomain = (domain: string): boolean => PERSONAL_MAIL.test(domain);
+
+/** Nom lisible tiré d'un domaine : « notification.undiz.com » → « Undiz ». */
+export function merchantNameFromDomain(domain: string): string {
+  const parts = domain.split(".");
+  const name = parts.length >= 2 ? parts[parts.length - 2] : domain;
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : domain;
+}
 
 /** Nom affiché de l'expéditeur (« Caats <no-reply@shopifyemail.com> » → « Caats »), borné. */
+const SERVICE_WORDS =
+  "service client|service clients|serviceclient|customer service|support|commandes?|orders?|livraisons?|notifications?|no-?reply";
+
+/** Mentions de service autour du nom (« Bambinou - Service Client », « L'équipe Cdiscount »). */
+const SERVICE_AFFIXES = [
+  new RegExp(`\\s+[-|–·:]\\s*(${SERVICE_WORDS})\\b.*$`, "i"),
+  new RegExp(`^(l['’]équipe|l['’]equipe|team|${SERVICE_WORDS})\\s+`, "i"),
+];
+
+/** Nom de boutique débarrassé des mentions de service. */
+export const shopName = (name: string): string =>
+  SERVICE_AFFIXES.reduce((n, affix) => n.replace(affix, "").trim(), name.trim());
+
 export function senderName(from: string): string | undefined {
-  const name = /^\s*"?([^"<]{1,80}?)"?\s*</.exec(from.slice(0, MAX_HEADER_LENGTH))?.[1]?.trim();
+  const raw = /^\s*"?([^"<]{1,80}?)"?\s*</.exec(from.slice(0, MAX_HEADER_LENGTH))?.[1];
+  const name = raw && shopName(raw);
   return name && !name.includes("@") ? name : undefined;
 }

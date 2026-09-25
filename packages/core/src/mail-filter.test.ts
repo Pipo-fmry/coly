@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { decideMailRead, merchantSender, senderName } from "./mail-filter.ts";
+import {
+  decideMailRead,
+  isCarrierDomain,
+  isPersonalMailDomain,
+  merchantNameFromDomain,
+  senderName,
+} from "./mail-filter.ts";
 
 const read = (from: string, subject: string) => decideMailRead({ from, subject });
 
@@ -52,23 +58,27 @@ describe("decideMailRead — robustesse", () => {
   });
 });
 
-describe("merchantSender", () => {
-  const from = (...domains: string[]) => domains.map((senderDomain) => ({ senderDomain }));
-
-  it("préfère le premier expéditeur qui n'est pas un transporteur", () => {
-    expect(
-      merchantSender(from("network1.pickup.fr", "information.dpd.fr", "bambinou.com")),
-    ).toEqual({ senderDomain: "bambinou.com" });
+describe("isCarrierDomain", () => {
+  it("reconnaît les domaines des transporteurs, notifications Colissimo comprises", () => {
+    expect(isCarrierDomain("network1.pickup.fr")).toBe(true);
+    expect(isCarrierDomain("notif-colissimo-laposte.info")).toBe(true);
+    expect(isCarrierDomain("bambinou.com")).toBe(false);
   });
+});
 
-  it("reconnaît les domaines de notification Colissimo comme transporteur", () => {
-    expect(merchantSender(from("notif-colissimo-laposte.info", "undiz.com"))?.senderDomain).toBe(
-      "undiz.com",
-    );
+describe("isPersonalMailDomain", () => {
+  it("reconnaît les messageries personnelles : l'email vient d'une personne, pas d'un marchand", () => {
+    expect(isPersonalMailDomain("gmail.com")).toBe(true);
+    expect(isPersonalMailDomain("orange.fr")).toBe(true);
+    expect(isPersonalMailDomain("laposte.net")).toBe(true);
+    expect(isPersonalMailDomain("justineclenquet.com")).toBe(false);
+    expect(isPersonalMailDomain("notif.laposte.fr")).toBe(false);
   });
+});
 
-  it("ne renvoie rien quand seuls des transporteurs ont écrit", () => {
-    expect(merchantSender(from("chronopost.fr", "chronopost.fr"))).toBeUndefined();
+describe("merchantNameFromDomain", () => {
+  it("garde le nom de domaine principal, capitalisé", () => {
+    expect(merchantNameFromDomain("notification.undiz.com")).toBe("Undiz");
   });
 });
 
@@ -76,6 +86,13 @@ describe("senderName", () => {
   it("lit le nom affiché de l'expéditeur, celui de la boutique sur une plateforme", () => {
     expect(senderName("Caats <no-reply@shopifyemail.com>")).toBe("Caats");
     expect(senderName('"La Fnac" <fnac@fnac.com>')).toBe("La Fnac");
+  });
+
+  it("retire les mentions de service autour du nom de la boutique", () => {
+    expect(senderName("Bambinou - Service Client <sc@bambinou.com>")).toBe("Bambinou");
+    expect(senderName("L'équipe Cdiscount <noreply@cdiscount.com>")).toBe("Cdiscount");
+    expect(senderName("Service client Fnac <client@fnac.com>")).toBe("Fnac");
+    expect(senderName("Zara Home | Commandes <noreply@zarahome.com>")).toBe("Zara Home");
   });
 
   it("ne renvoie rien sans nom affiché", () => {

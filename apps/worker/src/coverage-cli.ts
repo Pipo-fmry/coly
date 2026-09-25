@@ -19,6 +19,7 @@ function line(label: string, r: CoverageRow): string {
   return [
     label.padEnd(16),
     String(r.active).padStart(6),
+    pct(r.merchant).padEnd(16),
     pct(r.statusKnown).padEnd(16),
     pct(r.statusCorrect).padEnd(16),
     fresh.padStart(8),
@@ -45,6 +46,7 @@ print(
   [
     "Transporteur".padEnd(16),
     "Actifs".padStart(6),
+    "Marchand".padEnd(16),
     "Statut connu".padEnd(16),
     "Statut juste".padEnd(16),
     "Fraîch.".padStart(8),

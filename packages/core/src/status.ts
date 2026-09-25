@@ -1,17 +1,11 @@
 /**
- * Statut utilisateur dérivé des observations des sources (ADR 0005).
+ * Statut utilisateur dérivé des faits « statut » de toutes les sources (ADR 0005, 0016).
  * Règles v0 : rang monotone (on ne recule pas sans raison), un état terminal l'emporte toujours,
  * « problème » seulement si l'observation la plus récente le signale et qu'aucun état terminal n'est connu.
  */
 
+import type { Resolved, StatusFact } from "./facts.ts";
 import type { UserStatus } from "./index.ts";
-
-export interface StatusObservation {
-  source: "laposte" | "ship24" | "email";
-  status: UserStatus;
-  /** Horodatage de l'événement source, ISO 8601. */
-  at?: string;
-}
 
 const RANK: Record<UserStatus, number> = {
   ordered: 0,
@@ -26,6 +20,10 @@ const RANK: Record<UserStatus, number> = {
 };
 
 const TERMINAL = new Set<UserStatus>(["delivered", "picked_up", "returned"]);
+
+/** Colis terminé : livré, retiré ou retourné. */
+export const isTerminal = (status: UserStatus | undefined): boolean =>
+  status !== undefined && TERMINAL.has(status);
 
 /** Statuts Ship24 (`statusMilestone`) → statut Coly. */
 export function fromShip24Milestone(milestone: string | undefined): UserStatus | undefined {
@@ -60,16 +58,27 @@ export function fromLaPosteCode(code: string | undefined): UserStatus | undefine
   return undefined;
 }
 
-export function deriveStatus(observations: readonly StatusObservation[]): UserStatus | undefined {
-  if (observations.length === 0) return undefined;
-  const terminal = observations.filter((o) => TERMINAL.has(o.status));
-  const pool = terminal.length > 0 ? terminal : observations;
-  const latest = [...pool].sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))[0];
-  if (latest?.status === "problem" && terminal.length === 0) return "problem";
-  return pool
-    .filter((o) => o.status !== "problem")
-    .reduce<UserStatus | undefined>(
-      (best, o) => (best === undefined || RANK[o.status] > RANK[best] ? o.status : best),
-      undefined,
-    );
+/** Statut : fusion des faits « statut » de toutes les sources, avec les sources de la valeur retenue. */
+export function fuseStatus(facts: readonly StatusFact[]): Resolved<UserStatus> | undefined {
+  if (facts.length === 0) return undefined;
+  const terminal = facts.filter((f) => TERMINAL.has(f.value));
+  const pool = terminal.length > 0 ? terminal : facts;
+  const latest = [...pool].sort((a, b) =>
+    (b.observedAt ?? "").localeCompare(a.observedAt ?? ""),
+  )[0];
+  const value =
+    latest?.value === "problem" && terminal.length === 0
+      ? "problem"
+      : pool
+          .filter((f) => f.value !== "problem")
+          .reduce<UserStatus | undefined>(
+            (best, f) => (best === undefined || RANK[f.value] > RANK[best] ? f.value : best),
+            undefined,
+          );
+  if (!value) return undefined;
+  return {
+    value,
+    confidence: "certain",
+    sources: [...new Set(pool.filter((f) => f.value === value).map((f) => f.sourceRef))],
+  };
 }

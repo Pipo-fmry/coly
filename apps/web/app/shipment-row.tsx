@@ -12,7 +12,10 @@ export function ShipmentRow({ shipment }: { shipment: HomeShipment }) {
         {shipment.merchant.charAt(0)}
       </span>
       <span className="row-text">
-        <span className="row-label">{shipment.merchant}</span>
+        <span className="row-label">
+          {shipment.merchant}
+          {shipment.merchantProbable && <span className="probable">probable</span>}
+        </span>
         {/* Ce qu'on reçoit, puis où ; le transporteur en dernier, c'est l'info qui compte le moins. */}
         <span className="row-meta">
           {shipment.placeName && shipment.status !== "available_for_pickup"

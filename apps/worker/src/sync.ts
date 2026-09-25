@@ -15,29 +15,32 @@ import {
   type CarrierEmailInfo,
   carrierTrackingUrl,
   decideMailRead,
-  deriveStatus,
   detectTrackingNumbers,
   findPickupCode,
-  fromLaPosteCode,
-  fromShip24Milestone,
-  isMeaningfulPlace,
+  fuseMerchant,
+  fusePlace,
+  fuseStatus,
   isPresumedDone,
+  isTerminal,
   type MailDecision,
+  normalizeEvent,
   parseCarrierEmail,
   pickupImages,
+  type Resolved,
   routeFor,
-  type StatusObservation,
   senderName,
   type TrackingCandidate,
   type UserStatus,
 } from "@coly/core";
 import { config } from "./config.ts";
+import { merchantFacts, placeFacts, statusFacts } from "./facts.ts";
 import {
   buildQuery,
   downloadImage,
   getMessage,
   getMessageHeader,
   listMessageIds,
+  type MailMessage,
 } from "./gmail/client.ts";
 import { getAccessToken } from "./gmail/oauth.ts";
 import { dataPath } from "./paths.ts";
@@ -50,7 +53,6 @@ export const STATE_FILE = dataPath("state.json");
 const PICKUP_IMAGES_DIR = dataPath("pickup");
 export const SYNC_WINDOW_DAYS = 90;
 const STATE_VERSION = 3;
-const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
 
 /** Ce qui est conservé d'un email lu : aucune donnée de contenu. */
 export interface Sighting {
@@ -64,6 +66,8 @@ export interface Sighting {
 /** Ce qu'il faut montrer au relais, trouvé dans un email (générique, tous transporteurs). */
 export interface PickupProof {
   messageId: string;
+  /** Réception de l'email : la preuve la plus récente l'emporte. */
+  receivedAt: string;
   code?: string;
   /** Fichier de l'image dans le dossier de données, et son type. */
   image?: { file: string; mimeType: string };
@@ -82,7 +86,8 @@ export interface CarrierEmailFact {
 export interface ShipmentState {
   id: string;
   candidate: TrackingCandidate;
-  merchant: string;
+  /** Marchand fusionné depuis toutes les sources (ADR 0016), recalculé à chaque synchro. */
+  merchant?: Resolved<string>;
   /** Nom du marchand donné par le transporteur (ex. « Caats »), plus lisible que le domaine. */
   merchantLabel?: string;
   sightings: Sighting[];
@@ -94,6 +99,7 @@ export interface ShipmentState {
   pickup?: PickupProof;
   placeName?: string;
   placeAddress?: string;
+  placeLocality?: string;
   trackingUrl?: string;
   lastUpdate?: string;
 }
@@ -138,46 +144,19 @@ function senderDomain(from: string): string {
   return /@([^>\s]+)/.exec(from)?.[1]?.toLowerCase() ?? "inconnu";
 }
 
-function observations(snapshots: readonly TrackingSnapshot[]): StatusObservation[] {
-  return snapshots.flatMap((s) => {
-    const status =
-      s.source === "laposte"
-        ? fromLaPosteCode(s.lastEvent?.code)
-        : fromShip24Milestone(s.sourceStatus);
-    if (!status) return [];
-    const observation: StatusObservation = { source: s.source, status };
-    if (s.lastEvent?.at) observation.at = s.lastEvent.at;
-    return [observation];
-  });
-}
-
-function placeName(snapshots: readonly TrackingSnapshot[]): string | undefined {
-  for (const s of snapshots)
-    if (isMeaningfulPlace(s.removalPoint?.name)) return s.removalPoint?.name;
-  for (const s of snapshots) {
-    const pickup = s.events.find((e) =>
-      /pickup|relais|retrait|parcelshop|point/i.test(e.code ?? e.label),
-    );
-    if (isMeaningfulPlace(pickup?.location)) return pickup?.location;
-  }
-  return undefined;
-}
-
-function emailObservations(row: ShipmentState): StatusObservation[] {
-  return row.carrierEmails.map((e) => ({ source: "email", status: e.kind, at: e.receivedAt }));
-}
-
-/** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015). */
+/** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015, 0016). */
 function refreshDerived(row: ShipmentState): void {
-  row.status = deriveStatus([...observations(row.snapshots), ...emailObservations(row)]);
-  // L'email transporteur donne le relais exact (nom + adresse) : il prime sur l'agrégateur.
-  const emailPlace = row.carrierEmails.findLast((e) => e.pickupPoint)?.pickupPoint;
-  if (emailPlace) {
-    row.placeName = emailPlace.name;
-    if (emailPlace.address) row.placeAddress = emailPlace.address;
-  } else {
-    const place = placeName(row.snapshots);
-    if (place) row.placeName = place;
+  row.status = fuseStatus(statusFacts(row))?.value;
+  // Lieu : moteur de fusion (ADR 0016), l'email transporteur prime sur les API de suivi.
+  const place = fusePlace(placeFacts(row));
+  if (place) {
+    // Adresse et ville suivent le lieu retenu : jamais celles d'un lieu précédent.
+    const { name, address, locality } = place.value;
+    row.placeName = name;
+    if (address) row.placeAddress = address;
+    else delete row.placeAddress;
+    if (locality) row.placeLocality = locality;
+    else delete row.placeLocality;
   }
   const lastUpdate = [
     ...row.snapshots.flatMap((s) => s.events.map((e) => e.at)),
@@ -198,26 +177,39 @@ function lastSeen(row: ShipmentState): string {
   );
 }
 
+/** Code et image de retrait d'un email. Au mieux : un échec de téléchargement ne bloque jamais la synchro. */
 async function pickupProof(
   token: string,
-  message: Awaited<ReturnType<typeof getMessage>>,
+  message: MailMessage,
   trackingNumber: string,
 ): Promise<PickupProof | undefined> {
-  const proof: PickupProof = { messageId: message.id };
+  const proof: PickupProof = { messageId: message.id, receivedAt: message.date.toISOString() };
   const code = findPickupCode(message.text);
   if (code) proof.code = code;
   let image: Awaited<ReturnType<typeof downloadImage>>;
   for (const candidate of pickupImages(message.images)) {
-    image = await downloadImage(token, message.id, candidate);
+    image = await downloadImage(token, message.id, candidate).catch(() => undefined);
     if (image) break;
   }
   if (image) {
-    const file = trackingNumber.replace(/[^0-9A-Za-z]/g, "");
+    // Un fichier par email : une preuve plus ancienne lue ensuite n'écrase pas la plus récente.
+    const file = `${trackingNumber}-${message.id}`.replace(/[^0-9A-Za-z-]/g, "");
     await mkdir(PICKUP_IMAGES_DIR, { recursive: true });
     await writeFile(join(PICKUP_IMAGES_DIR, file), image.bytes);
     proof.image = { file, mimeType: image.mimeType };
   }
   return proof.code || proof.image ? proof : undefined;
+}
+
+/** Les emails sont lus du plus récent au plus ancien : la preuve la plus récente prime, l'autre la complète. */
+export function mergePickupProof(
+  current: PickupProof | undefined,
+  incoming: PickupProof,
+): PickupProof {
+  if (!current) return incoming;
+  return incoming.receivedAt >= current.receivedAt
+    ? { ...current, ...incoming }
+    : { ...incoming, ...current };
 }
 
 /** Image de retrait d'un colis, telle qu'envoyée par le transporteur. */
@@ -230,10 +222,22 @@ export async function readPickupImage(
   return bytes && { mimeType: image.mimeType, bytes };
 }
 
+/** Colis par son numéro (identifiant d'URL décodé). */
+export async function findShipment(id: string): Promise<ShipmentState | undefined> {
+  return (await readState())?.shipments.find((s) => s.id === id);
+}
+
 export async function readState(): Promise<ColyState | undefined> {
   try {
     const state = JSON.parse(await readFile(STATE_FILE, "utf8")) as ColyState;
-    return state.version === STATE_VERSION ? state : undefined;
+    if (state.version !== STATE_VERSION) return undefined;
+    // Snapshots stockés avant la normalisation des événements : même traitement qu'à la lecture de la source.
+    for (const shipment of state.shipments)
+      for (const snapshot of shipment.snapshots) {
+        snapshot.events = snapshot.events.map(normalizeEvent);
+        if (snapshot.events[0]) snapshot.lastEvent = snapshot.events[0];
+      }
+    return state;
   } catch {
     return undefined;
   }
@@ -320,14 +324,13 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       const row = rows.get(candidate.trackingNumber) ?? {
         id: candidate.trackingNumber,
         candidate,
-        merchant: sighting.senderDomain,
         sightings: [],
         carrierEmails: [],
         snapshots: [],
         status: undefined,
       };
       row.sightings.push(sighting);
-      if (proof) row.pickup = { ...row.pickup, ...proof };
+      if (proof) row.pickup = mergePickupProof(row.pickup, proof);
       if (carrierEmail?.trackingNumber === candidate.trackingNumber) {
         const fact: CarrierEmailFact = {
           messageId: message.id,
@@ -353,7 +356,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
   for (const row of byRecency) {
     const url = carrierTrackingUrl(row.candidate.carrier, row.id);
     if (url) row.trackingUrl = url;
-    if (row.status && TERMINAL.has(row.status)) continue;
+    if (isTerminal(row.status)) continue;
     if (row.presumedDone || isPresumedDone(lastSeen(row), row.status !== undefined, now)) {
       row.presumedDone = true;
       continue;
@@ -375,6 +378,12 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     }
     if (snapshots.length > 0) row.snapshots = snapshots;
     refreshDerived(row);
+  }
+  // Marchand : pour tous les colis, terminés compris, car un email sans numéro reçu depuis peut le révéler.
+  for (const row of byRecency) {
+    const merchant = fuseMerchant(merchantFacts(row, readWithoutNumber));
+    if (merchant) row.merchant = merchant;
+    else delete row.merchant;
   }
 
   const state: ColyState = {

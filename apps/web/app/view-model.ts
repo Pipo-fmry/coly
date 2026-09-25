@@ -5,7 +5,7 @@ import {
   type HomeShipment,
   type HomeView,
   isMeaningfulPlace,
-  merchantSender,
+  isTerminal,
   mergeTimeline,
   type SourcedEvent,
   type UserStatus,
@@ -33,8 +33,6 @@ export const SOURCES: Record<string, string> = {
   email: "email transporteur",
 };
 
-export const DONE: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
-
 export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> = {
   ordered: { label: "Commandé", tone: "transit" },
   shipped: { label: "Expédié", tone: "transit" },
@@ -46,13 +44,6 @@ export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> =
   returned: { label: "Retourné", tone: "done" },
   problem: { label: "Problème", tone: "problem" },
 };
-
-/** « notification.undiz.com » → « Undiz ». */
-export function merchantName(domain: string): string {
-  const parts = domain.split(".");
-  const name = parts.length >= 2 ? parts[parts.length - 2] : domain;
-  return name ? name.charAt(0).toUpperCase() + name.slice(1) : domain;
-}
 
 export const carrierName = (s: ShipmentState) =>
   CARRIERS[s.candidate.carrier] ?? s.candidate.carrier;
@@ -72,32 +63,28 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
-/**
- * Nom du marchand : celui donné par le transporteur s'il existe, sinon le premier expéditeur qui n'est pas un
- * transporteur (son nom affiché, sinon son domaine). Un colis dont seul le transporteur a écrit n'a pas de marchand
- * connu : on ne le remplace pas par le nom du transporteur, qui ne dit rien de l'achat.
- */
-export const displayMerchant = (s: ShipmentState) => {
-  const sender = merchantSender(s.sightings);
-  return (
-    s.merchantLabel ??
-    sender?.senderName ??
-    (sender ? merchantName(sender.senderDomain) : "Marchand inconnu")
-  );
-};
+/** Adresse du lieu, ou à défaut sa ville : de quoi le situer et le placer sur une carte. */
+export const placeLine = (s: ShipmentState) => s.placeAddress ?? s.placeLocality;
 
-/** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */
+/** Recherche carte / itinéraire d'un lieu. */
+export const placeQuery = (s: ShipmentState) =>
+  [s.placeName, placeLine(s)].filter(Boolean).join(" ");
+
+/** En route : ni au point de retrait, ni terminé. */
+export const isOnTheWay = (s: ShipmentState) =>
+  s.status !== "available_for_pickup" && !isTerminal(s.status);
+
+/** Lieu où le colis va arriver (fusionné à la synchro), avec la date annoncée par le transporteur. */
 export function destination(
   s: ShipmentState,
 ): { name: string; address?: string; on?: string } | undefined {
-  const announced = s.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint);
-  if (announced?.pickupPoint)
-    return {
-      ...announced.pickupPoint,
-      ...(announced.availableOn && { on: announced.availableOn }),
-    };
-  if (s.placeName) return { name: s.placeName, ...(s.placeAddress && { address: s.placeAddress }) };
-  return undefined;
+  if (!s.placeName) return undefined;
+  const on = s.carrierEmails.findLast((e) => e.availableOn)?.availableOn;
+  return {
+    name: s.placeName,
+    ...(placeLine(s) && { address: placeLine(s) }),
+    ...(on && { on }),
+  };
 }
 
 /** Livraison estimée par une source de suivi, si elle en donne une. */
@@ -138,18 +125,21 @@ export function timeline(s: ShipmentState): SourcedEvent[] {
 export function toHomeView(state: ColyState, now: Date): HomeView & { archived: number } {
   const active = state.shipments.filter((s) => !s.presumedDone);
   const shipments: HomeShipment[] = active.map((s) => {
+    const { merchant } = s;
     const home: HomeShipment = {
       id: s.id,
-      merchant: displayMerchant(s),
+      // Jamais remplacé par le nom du transporteur, qui ne dit rien de l'achat.
+      merchant: merchant?.value ?? "Marchand inconnu",
       carrier: carrierName(s),
       status: s.status,
     };
+    if (merchant?.confidence === "probable") home.merchantProbable = true;
     const since = availableSince(s);
     if (since) home.availableSince = since;
     // Faute de nom de relais transmis par la source, on nomme le réseau plutôt que d'inventer.
     if (s.status === "available_for_pickup")
       home.placeName = s.placeName ?? `Point relais ${carrierName(s)}`;
-    else if (s.status && !DONE.has(s.status)) {
+    else if (s.status && isOnTheWay(s)) {
       const where = destination(s);
       if (where) home.placeName = where.name;
     }

@@ -3,6 +3,7 @@
  * Fonction pure : état + vérité de référence + heure courante → indicateurs, par transporteur et au global.
  */
 
+import { isTerminal } from "@coly/core";
 import type { GroundTruth } from "./ground-truth.ts";
 import type { ColyState, ShipmentState } from "./sync.ts";
 
@@ -13,6 +14,8 @@ export interface Ratio {
 
 export interface CoverageRow {
   active: number;
+  /** Marchand trouvé par le moteur de fusion (certain ou probable). */
+  merchant: Ratio;
   statusKnown: Ratio;
   /** Seulement sur les colis vérifiés par l'utilisateur. */
   statusCorrect: Ratio;
@@ -35,8 +38,6 @@ export interface CoverageReport {
   carrierEmailsNotUnderstood: Record<string, number>;
 }
 
-const TERMINAL = new Set(["delivered", "picked_up", "returned"]);
-
 const ratio = (items: readonly unknown[], test: (x: never) => boolean): Ratio => ({
   hits: items.filter((x) => test(x as never)).length,
   total: items.length,
@@ -55,11 +56,12 @@ function row(shipments: readonly ShipmentState[], truth: GroundTruth, now: Date)
   const verified = shipments.filter((s) => truth[s.id]);
   const pickups = shipments.filter((s) => s.status === "available_for_pickup");
   const freshness = shipments
-    .filter((s) => s.lastUpdate && !(s.status && TERMINAL.has(s.status)))
+    .filter((s) => s.lastUpdate && !isTerminal(s.status))
     .map((s) => (now.getTime() - Date.parse(s.lastUpdate ?? "")) / 3_600_000);
 
   return {
     active: shipments.length,
+    merchant: ratio(shipments, (s: ShipmentState) => s.merchant !== undefined),
     statusKnown: ratio(shipments, (s: ShipmentState) => s.status !== undefined),
     statusCorrect: ratio(verified, (s: ShipmentState) => truth[s.id]?.status === s.status),
     medianFreshnessHours: median(freshness),
