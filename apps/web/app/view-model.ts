@@ -5,7 +5,7 @@ import {
   type HomeShipment,
   type HomeView,
   isMeaningfulPlace,
-  merchantDomain,
+  merchantSender,
   mergeTimeline,
   type SourcedEvent,
   type UserStatus,
@@ -73,13 +73,17 @@ export function availableSince(s: ShipmentState): string | undefined {
 }
 
 /**
- * Nom du marchand : celui donné par le transporteur s'il existe, sinon déduit du premier expéditeur qui n'est pas
- * un transporteur. Un colis dont seul le transporteur a écrit n'a pas de marchand connu : on ne le remplace pas
- * par le nom du transporteur, qui ne dit rien de l'achat.
+ * Nom du marchand : celui donné par le transporteur s'il existe, sinon le premier expéditeur qui n'est pas un
+ * transporteur (son nom affiché, sinon son domaine). Un colis dont seul le transporteur a écrit n'a pas de marchand
+ * connu : on ne le remplace pas par le nom du transporteur, qui ne dit rien de l'achat.
  */
 export const displayMerchant = (s: ShipmentState) => {
-  const domain = merchantDomain(s.sightings.map((x) => x.senderDomain));
-  return s.merchantLabel ?? (domain ? merchantName(domain) : "Marchand inconnu");
+  const sender = merchantSender(s.sightings);
+  return (
+    s.merchantLabel ??
+    sender?.senderName ??
+    (sender ? merchantName(sender.senderDomain) : "Marchand inconnu")
+  );
 };
 
 /** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */

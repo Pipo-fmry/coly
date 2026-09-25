@@ -102,7 +102,13 @@ export default async function Home() {
 
       <Section title="En route" items={view.inTransit} />
       <Section title="Statut inconnu" items={view.unknown} />
-      <Section title="Terminés" items={view.done} />
+      {/* Les colis terminés ne servent plus au quotidien : un lien vers l'historique, pas la liste. */}
+      {view.done.length > 0 && (
+        <Link className="history-link" href="/historique">
+          <span>Historique</span>
+          <span className="meta">{view.done.length} colis terminés</span>
+        </Link>
+      )}
     </main>
   );
 }

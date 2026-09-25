@@ -41,6 +41,13 @@ export function decideMailRead(header: MailHeader): MailDecision {
   return { read: false, reason: "not_transactional" };
 }
 
-/** Domaine du marchand : premier expéditeur qui n'est pas un transporteur (ceux-là écrivent pour le compte d'un autre). */
-export const merchantDomain = (senderDomains: readonly string[]): string | undefined =>
-  senderDomains.find((domain) => !CARRIER_SENDERS.test(`@${domain}`));
+/** Marchand : premier expéditeur qui n'est pas un transporteur (ceux-là écrivent pour le compte d'un autre). */
+export const merchantSender = <T extends { senderDomain: string }>(
+  senders: readonly T[],
+): T | undefined => senders.find((s) => !CARRIER_SENDERS.test(`@${s.senderDomain}`));
+
+/** Nom affiché de l'expéditeur (« Caats <no-reply@shopifyemail.com> » → « Caats »), borné. */
+export function senderName(from: string): string | undefined {
+  const name = /^\s*"?([^"<]{1,80}?)"?\s*</.exec(from.slice(0, MAX_HEADER_LENGTH))?.[1]?.trim();
+  return name && !name.includes("@") ? name : undefined;
+}

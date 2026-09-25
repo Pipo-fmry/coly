@@ -10,26 +10,35 @@
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type CarrierEmailInfo,
   carrierTrackingUrl,
   decideMailRead,
   deriveStatus,
   detectTrackingNumbers,
+  findPickupCode,
   fromLaPosteCode,
   fromShip24Milestone,
   isMeaningfulPlace,
   isPresumedDone,
   type MailDecision,
   parseCarrierEmail,
+  pickupImages,
   routeFor,
   type StatusObservation,
+  senderName,
   type TrackingCandidate,
   type UserStatus,
 } from "@coly/core";
 import { config } from "./config.ts";
-import { buildQuery, getMessage, getMessageHeader, listMessageIds } from "./gmail/client.ts";
+import {
+  buildQuery,
+  downloadImage,
+  getMessage,
+  getMessageHeader,
+  listMessageIds,
+} from "./gmail/client.ts";
 import { getAccessToken } from "./gmail/oauth.ts";
 import { dataPath } from "./paths.ts";
 import { trackLaPoste } from "./tracking/laposte.ts";
@@ -37,6 +46,8 @@ import { trackShip24 } from "./tracking/ship24.ts";
 import type { TrackingSnapshot } from "./tracking/types.ts";
 
 export const STATE_FILE = dataPath("state.json");
+/** Images de QR / code-barres de retrait, telles qu'envoyées (une par colis). */
+const PICKUP_IMAGES_DIR = dataPath("pickup");
 export const SYNC_WINDOW_DAYS = 90;
 const STATE_VERSION = 3;
 const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
@@ -45,7 +56,17 @@ const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "re
 export interface Sighting {
   date: string;
   senderDomain: string;
+  /** Nom affiché de l'expéditeur : celui de la boutique quand elle passe par une plateforme d'envoi. */
+  senderName?: string;
   messageId: string;
+}
+
+/** Ce qu'il faut montrer au relais, trouvé dans un email (générique, tous transporteurs). */
+export interface PickupProof {
+  messageId: string;
+  code?: string;
+  /** Fichier de l'image dans le dossier de données, et son type. */
+  image?: { file: string; mimeType: string };
 }
 
 /** Ce qu'un email transporteur apprend sur un colis (données logistiques uniquement, ADR 0013). */
@@ -70,6 +91,7 @@ export interface ShipmentState {
   status: UserStatus | undefined;
   /** Colis ancien sans statut, présumé terminé : pas de quota dépensé (première installation). */
   presumedDone?: boolean;
+  pickup?: PickupProof;
   placeName?: string;
   placeAddress?: string;
   trackingUrl?: string;
@@ -176,6 +198,38 @@ function lastSeen(row: ShipmentState): string {
   );
 }
 
+async function pickupProof(
+  token: string,
+  message: Awaited<ReturnType<typeof getMessage>>,
+  trackingNumber: string,
+): Promise<PickupProof | undefined> {
+  const proof: PickupProof = { messageId: message.id };
+  const code = findPickupCode(message.text);
+  if (code) proof.code = code;
+  let image: Awaited<ReturnType<typeof downloadImage>>;
+  for (const candidate of pickupImages(message.images)) {
+    image = await downloadImage(token, message.id, candidate);
+    if (image) break;
+  }
+  if (image) {
+    const file = trackingNumber.replace(/[^0-9A-Za-z]/g, "");
+    await mkdir(PICKUP_IMAGES_DIR, { recursive: true });
+    await writeFile(join(PICKUP_IMAGES_DIR, file), image.bytes);
+    proof.image = { file, mimeType: image.mimeType };
+  }
+  return proof.code || proof.image ? proof : undefined;
+}
+
+/** Image de retrait d'un colis, telle qu'envoyée par le transporteur. */
+export async function readPickupImage(
+  shipment: ShipmentState,
+): Promise<{ mimeType: string; bytes: Buffer } | undefined> {
+  const image = shipment.pickup?.image;
+  if (!image) return undefined;
+  const bytes = await readFile(join(PICKUP_IMAGES_DIR, image.file)).catch(() => undefined);
+  return bytes && { mimeType: image.mimeType, bytes };
+}
+
 export async function readState(): Promise<ColyState | undefined> {
   try {
     const state = JSON.parse(await readFile(STATE_FILE, "utf8")) as ColyState;
@@ -233,6 +287,8 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       senderDomain: senderDomain(message.from),
       messageId: message.id,
     };
+    const name = senderName(message.from);
+    if (name) sighting.senderName = name;
     const candidates = detectTrackingNumbers(message.text, message.urls);
     const carrierEmail = parseCarrierEmail({
       from: message.from,
@@ -250,6 +306,11 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
         trackingNumber: carrierEmail.trackingNumber,
         via: "carrier_email",
       });
+    // Code ou QR de retrait : rattaché seulement quand l'email ne parle que d'un colis, sinon on ne sait pas lequel.
+    const proof =
+      candidates.length === 1 && candidates[0]
+        ? await pickupProof(token, message, candidates[0].trackingNumber)
+        : undefined;
     // Le contenu de l'email n'est plus référencé au-delà de ce point.
     if (candidates.length === 0) {
       readWithoutNumber.push(sighting);
@@ -266,6 +327,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
         status: undefined,
       };
       row.sightings.push(sighting);
+      if (proof) row.pickup = { ...row.pickup, ...proof };
       if (carrierEmail?.trackingNumber === candidate.trackingNumber) {
         const fact: CarrierEmailFact = {
           messageId: message.id,

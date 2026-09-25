@@ -1,7 +1,8 @@
 import { readState } from "@coly/worker/sync";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackLink } from "../../back-link";
 import { formatDate, formatDateTime, since } from "../../format";
+import { PlaceMap } from "../../place-map";
 import {
   availableSince,
   carrierName,
@@ -28,7 +29,8 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const carrier = carrierName(shipment);
   const events = timeline(shipment);
   const arrived = availableSince(shipment);
-  const qrEmail = pickupQrEmail(shipment);
+  const pickup = shipment.pickup;
+  const proofEmail = pickup?.messageId ?? pickupQrEmail(shipment)?.messageId;
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
   const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
   // En route : dernière nouvelle puis destination, le trajet complet vient ensuite.
@@ -40,23 +42,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
 
   return (
     <main className="screen">
-      <Link href="/" className="back" aria-label="Retour">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14" />
-          <path d="M5 12l6 6" />
-          <path d="M5 12l6 -6" />
-        </svg>
-      </Link>
+      <BackLink />
 
       <header className="detail-header">
         <span className={`pill pill-${status?.tone ?? "done"}`}>
@@ -69,35 +55,57 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
       </header>
 
       {shipment.status === "available_for_pickup" && (
-        <section className="place">
-          <div>
-            <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
-            {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
-            {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
-          </div>
-          <div className="place-actions">
-            {qrEmail && (
+        <>
+          {/* L'information n°1 au relais : le code ou le QR, tel que le transporteur l'a envoyé. */}
+          <section className="card pickup-proof">
+            <span className="card-label">À présenter au relais</span>
+            {pickup?.image && (
+              // biome-ignore lint/performance/noImgElement: image servie telle quelle, pas d'optimisation voulue
+              <img
+                className="pickup-image"
+                src={`/api/retrait/${encodeURIComponent(shipment.id)}`}
+                alt="QR code de retrait"
+              />
+            )}
+            {pickup?.code && <p className="pickup-code">{pickup.code}</p>}
+            {!pickup?.image && !pickup?.code && (
+              <p>
+                {proofEmail ? "Code non lu automatiquement." : "Aucun code trouvé dans tes emails."}
+              </p>
+            )}
+            {!pickup?.image && proofEmail && (
               <a
-                className="button-primary"
-                href={gmailLink(qrEmail.messageId)}
+                className="button-secondary"
+                href={gmailLink(proofEmail)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                QR code de retrait
+                Ouvrir l'email du transporteur
               </a>
             )}
+          </section>
+
+          <section className="place">
+            <div>
+              <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
+              {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
+              {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
+            </div>
             {placeQuery && (
-              <a
-                className="button-on-dark"
-                href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Itinéraire
-              </a>
+              <>
+                <PlaceMap query={placeQuery} />
+                <a
+                  className="button-on-dark"
+                  href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Itinéraire
+                </a>
+              </>
             )}
-          </div>
-        </section>
+          </section>
+        </>
       )}
 
       {onTheWay && (
@@ -128,6 +136,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
                   .join(" · ")}
               </p>
             )}
+            {where?.address && <PlaceMap query={`${where.name} ${where.address}`} />}
           </section>
         </>
       )}
