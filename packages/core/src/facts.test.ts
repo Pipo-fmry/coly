@@ -68,6 +68,21 @@ describe("fuseMerchant", () => {
     ).toMatchObject({ value: "Fnac", confidence: "certain" });
   });
 
+  it("entre deux faits certains contradictoires de même force, garde le premier observé", () => {
+    expect(
+      fuseMerchant([merchant("Zalando", "sender"), merchant("Decathlon", "sender")])?.value,
+    ).toBe("Zalando");
+  });
+
+  it("ne répète pas une même source", () => {
+    expect(
+      fuseMerchant([
+        { ...merchant("Caats", "sender"), sourceRef: "email caats.co" },
+        { ...merchant("Caats", "sender"), sourceRef: "email caats.co" },
+      ])?.sources,
+    ).toEqual(["email caats.co"]);
+  });
+
   it("ne renvoie rien sans fait", () => {
     expect(fuseMerchant([])).toBeUndefined();
   });

@@ -62,6 +62,8 @@ export interface Sighting {
 /** Ce qu'il faut montrer au relais, trouvé dans un email (générique, tous transporteurs). */
 export interface PickupProof {
   messageId: string;
+  /** Réception de l'email : la preuve la plus récente l'emporte. */
+  receivedAt: string;
   code?: string;
   /** Fichier de l'image dans le dossier de données, et son type. */
   image?: { file: string; mimeType: string };
@@ -164,26 +166,39 @@ function lastSeen(row: ShipmentState): string {
   );
 }
 
+/** Code et image de retrait d'un email. Au mieux : un échec de téléchargement ne bloque jamais la synchro. */
 async function pickupProof(
   token: string,
   message: Awaited<ReturnType<typeof getMessage>>,
   trackingNumber: string,
 ): Promise<PickupProof | undefined> {
-  const proof: PickupProof = { messageId: message.id };
+  const proof: PickupProof = { messageId: message.id, receivedAt: message.date.toISOString() };
   const code = findPickupCode(message.text);
   if (code) proof.code = code;
   let image: Awaited<ReturnType<typeof downloadImage>>;
   for (const candidate of pickupImages(message.images)) {
-    image = await downloadImage(token, message.id, candidate);
+    image = await downloadImage(token, message.id, candidate).catch(() => undefined);
     if (image) break;
   }
   if (image) {
-    const file = trackingNumber.replace(/[^0-9A-Za-z]/g, "");
+    // Un fichier par email : une preuve plus ancienne lue ensuite n'écrase pas la plus récente.
+    const file = `${trackingNumber}-${message.id}`.replace(/[^0-9A-Za-z-]/g, "");
     await mkdir(PICKUP_IMAGES_DIR, { recursive: true });
     await writeFile(join(PICKUP_IMAGES_DIR, file), image.bytes);
     proof.image = { file, mimeType: image.mimeType };
   }
   return proof.code || proof.image ? proof : undefined;
+}
+
+/** Les emails sont lus du plus récent au plus ancien : la preuve la plus récente prime, l'autre la complète. */
+export function mergePickupProof(
+  current: PickupProof | undefined,
+  incoming: PickupProof,
+): PickupProof {
+  if (!current) return incoming;
+  return incoming.receivedAt >= current.receivedAt
+    ? { ...current, ...incoming }
+    : { ...incoming, ...current };
 }
 
 /** Image de retrait d'un colis, telle qu'envoyée par le transporteur. */
@@ -293,7 +308,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
         status: undefined,
       };
       row.sightings.push(sighting);
-      if (proof) row.pickup = { ...row.pickup, ...proof };
+      if (proof) row.pickup = mergePickupProof(row.pickup, proof);
       if (carrierEmail?.trackingNumber === candidate.trackingNumber) {
         const fact: CarrierEmailFact = {
           messageId: message.id,

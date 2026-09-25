@@ -29,11 +29,11 @@ const DAY_MS = 86_400_000;
 const trackingKind = (s: TrackingSnapshot): SourceKind =>
   s.source === "laposte" ? "official_api" : "aggregator";
 
-// Nettoyé à la lecture aussi : les noms stockés avant une amélioration en profitent sans resynchro.
 /** Un marchand écrit depuis son domaine : ni un transporteur, ni une messagerie personnelle. */
 const fromMerchant = (s: Sighting) =>
   !isCarrierDomain(s.senderDomain) && !isPersonalMailDomain(s.senderDomain);
 
+// Nettoyé à la lecture aussi : les noms stockés avant une amélioration en profitent sans resynchro.
 const senderLabel = (s: Sighting) =>
   (s.senderName && shopName(s.senderName)) || merchantNameFromDomain(s.senderDomain);
 

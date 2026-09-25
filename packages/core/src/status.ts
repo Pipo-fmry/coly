@@ -75,6 +75,6 @@ export function fuseStatus(facts: readonly StatusFact[]): Resolved<UserStatus> |
   return {
     value,
     confidence: "certain",
-    sources: pool.filter((f) => f.value === value).map((f) => f.sourceRef),
+    sources: [...new Set(pool.filter((f) => f.value === value).map((f) => f.sourceRef))],
   };
 }

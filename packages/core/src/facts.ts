@@ -112,8 +112,8 @@ const best = <T>(items: readonly T[], score: (item: T) => number): T | undefined
 
 /**
  * Marchand : un fait certain l'emporte (le plus précis). Sinon, des faits probables concordants venant de sources
- * différentes se confirment ; un fait probable isolé est gardé tel quel ; des pistes contradictoires de même
- * précision ne sont pas départagées au hasard.
+ * différentes se confirment ; un fait probable isolé est gardé tel quel ; des pistes probables contradictoires de
+ * même précision ne sont pas départagées au hasard. Entre faits certains de même force, le premier observé l'emporte.
  */
 export function fuseMerchant(facts: readonly MerchantFact[]): Resolved<string> | undefined {
   const certain = facts.filter((f) => f.confidence === "certain");
@@ -127,9 +127,11 @@ export function fuseMerchant(facts: readonly MerchantFact[]): Resolved<string> |
   }
   const strength = (g: MerchantFact[]) =>
     new Set(g.map((f) => f.kind)).size * 10 + Math.max(...g.map((f) => EVIDENCE[f.kind]));
+  // Tri stable : à force égale, l'ordre d'observation est conservé.
   const ranked = [...groups].sort((a, b) => strength(b) - strength(a));
   const [top, second] = ranked;
-  if (!top || (second && strength(second) === strength(top))) return undefined;
+  if (!top || (certain.length === 0 && second && strength(second) === strength(top)))
+    return undefined;
 
   const confirmed = certain.length > 0 || new Set(top.map((f) => f.kind)).size > 1;
   // Un nom écrit normalement (« Caats ») se lit mieux que tout en capitales (« CAATS »).
@@ -139,7 +141,7 @@ export function fuseMerchant(facts: readonly MerchantFact[]): Resolved<string> |
   return {
     value: shown.value,
     confidence: confirmed ? "certain" : "probable",
-    sources: top.map((f) => f.sourceRef),
+    sources: [...new Set(top.map((f) => f.sourceRef))],
   };
 }
 
@@ -157,7 +159,7 @@ export function fusePlace(facts: readonly PlaceFact[]): Resolved<Place> | undefi
   return {
     value: address ? { ...chosen.value, address } : chosen.value,
     confidence: chosen.confidence,
-    sources: same.map((f) => f.sourceRef),
+    sources: [...new Set(same.map((f) => f.sourceRef))],
   };
 }
 

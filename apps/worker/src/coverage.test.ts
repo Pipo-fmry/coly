@@ -48,7 +48,11 @@ describe("computeCoverage", () => {
             hasPickupQrCode: true,
           },
         ],
-        pickup: { messageId: "m", image: { file: "A", mimeType: "image/png" } },
+        pickup: {
+          messageId: "m",
+          receivedAt: "2026-09-23T10:00:00Z",
+          image: { file: "A-m", mimeType: "image/png" },
+        },
       }),
       shipment({
         id: "B",
