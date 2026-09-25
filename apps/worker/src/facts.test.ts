@@ -45,11 +45,24 @@ describe("merchantFacts", () => {
     });
   });
 
-  it("ignore un email sans numéro trop ancien ou venant d'un transporteur", () => {
+  it("ignore un email sans numéro trop ancien, d'un transporteur ou d'une personne", () => {
     const s = shipment({});
     expect(
-      merchantFacts(s, [orphan("2026-09-10", "fnac.com", "Fnac"), orphan("2026-09-24", "dpd.fr")]),
+      merchantFacts(s, [
+        orphan("2026-09-10", "fnac.com", "Fnac"),
+        orphan("2026-09-24", "dpd.fr"),
+        orphan("2026-09-24", "gmail.com", "Olivier"),
+      ]),
     ).toEqual([]);
+  });
+
+  it("ne prend pas pour marchand une personne qui transfère l'email du colis", () => {
+    const s = shipment({
+      sightings: [
+        { date: "2026-09-20", senderDomain: "gmail.com", senderName: "Olivier", messageId: "f" },
+      ],
+    });
+    expect(merchantFacts(s, [])).toEqual([]);
   });
 
   it("prend l'expéditeur d'un email qui cite le numéro, nom affiché d'abord", () => {

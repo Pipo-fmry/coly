@@ -15,24 +15,21 @@ import {
   type CarrierEmailInfo,
   carrierTrackingUrl,
   decideMailRead,
-  deriveStatus,
   detectTrackingNumbers,
   findPickupCode,
-  fromLaPosteCode,
-  fromShip24Milestone,
   fusePlace,
+  fuseStatus,
   isPresumedDone,
   type MailDecision,
   parseCarrierEmail,
   pickupImages,
   routeFor,
-  type StatusObservation,
   senderName,
   type TrackingCandidate,
   type UserStatus,
 } from "@coly/core";
 import { config } from "./config.ts";
-import { placeFacts } from "./facts.ts";
+import { placeFacts, statusFacts } from "./facts.ts";
 import {
   buildQuery,
   downloadImage,
@@ -139,26 +136,9 @@ function senderDomain(from: string): string {
   return /@([^>\s]+)/.exec(from)?.[1]?.toLowerCase() ?? "inconnu";
 }
 
-function observations(snapshots: readonly TrackingSnapshot[]): StatusObservation[] {
-  return snapshots.flatMap((s) => {
-    const status =
-      s.source === "laposte"
-        ? fromLaPosteCode(s.lastEvent?.code)
-        : fromShip24Milestone(s.sourceStatus);
-    if (!status) return [];
-    const observation: StatusObservation = { source: s.source, status };
-    if (s.lastEvent?.at) observation.at = s.lastEvent.at;
-    return [observation];
-  });
-}
-
-function emailObservations(row: ShipmentState): StatusObservation[] {
-  return row.carrierEmails.map((e) => ({ source: "email", status: e.kind, at: e.receivedAt }));
-}
-
-/** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015). */
+/** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015, 0016). */
 function refreshDerived(row: ShipmentState): void {
-  row.status = deriveStatus([...observations(row.snapshots), ...emailObservations(row)]);
+  row.status = fuseStatus(statusFacts(row))?.value;
   // Lieu : moteur de fusion (ADR 0016), l'email transporteur prime sur les API de suivi.
   const place = fusePlace(placeFacts(row));
   if (place) {

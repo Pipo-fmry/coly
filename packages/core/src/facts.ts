@@ -4,6 +4,7 @@
  * *genres* de source, classés par précision.
  */
 
+import type { UserStatus } from "./index.ts";
 import { isMeaningfulPlace } from "./tracking-info.ts";
 
 export type Confidence = "certain" | "probable";
@@ -39,7 +40,8 @@ export interface Place {
 
 export type MerchantFact = FactBase<"merchant", string>;
 export type PlaceFact = FactBase<"place", Place>;
-export type ShipmentFact = MerchantFact | PlaceFact;
+export type StatusFact = FactBase<"status", UserStatus>;
+export type ShipmentFact = MerchantFact | PlaceFact | StatusFact;
 
 export interface Resolved<V> {
   value: V;

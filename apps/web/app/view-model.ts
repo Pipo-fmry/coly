@@ -65,10 +65,6 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
-/** Marchand affiché : fusion de toutes les sources (ADR 0016). Jamais remplacé par le nom du transporteur. */
-export const displayMerchant = (s: ShipmentState, state: ColyState) =>
-  shipmentMerchant(s, state)?.value ?? "Marchand inconnu";
-
 /** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */
 export function destination(
   s: ShipmentState,
@@ -121,12 +117,15 @@ export function timeline(s: ShipmentState): SourcedEvent[] {
 export function toHomeView(state: ColyState, now: Date): HomeView & { archived: number } {
   const active = state.shipments.filter((s) => !s.presumedDone);
   const shipments: HomeShipment[] = active.map((s) => {
+    const merchant = shipmentMerchant(s, state);
     const home: HomeShipment = {
       id: s.id,
-      merchant: displayMerchant(s, state),
+      // Jamais remplacé par le nom du transporteur, qui ne dit rien de l'achat.
+      merchant: merchant?.value ?? "Marchand inconnu",
       carrier: carrierName(s),
       status: s.status,
     };
+    if (merchant?.confidence === "probable") home.merchantProbable = true;
     const since = availableSince(s);
     if (since) home.availableSince = since;
     // Faute de nom de relais transmis par la source, on nomme le réseau plutôt que d'inventer.

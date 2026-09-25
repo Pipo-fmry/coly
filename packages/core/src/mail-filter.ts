@@ -44,6 +44,12 @@ export function decideMailRead(header: MailHeader): MailDecision {
 /** Domaine d'un transporteur : ses emails parlent d'un colis pour le compte d'un marchand. */
 export const isCarrierDomain = (domain: string): boolean => CARRIER_SENDERS.test(`@${domain}`);
 
+/** Messageries personnelles : l'expéditeur est une personne (un proche qui transfère un colis), pas un marchand. */
+const PERSONAL_MAIL =
+  /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|proton|protonmail|orange|wanadoo|free|sfr|neuf|bbox|laposte)\.[a-z.]+$/i;
+
+export const isPersonalMailDomain = (domain: string): boolean => PERSONAL_MAIL.test(domain);
+
 /** Nom lisible tiré d'un domaine : « notification.undiz.com » → « Undiz ». */
 export function merchantNameFromDomain(domain: string): string {
   const parts = domain.split(".");

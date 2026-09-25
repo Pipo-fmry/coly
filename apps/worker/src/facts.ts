@@ -4,13 +4,17 @@
  */
 
 import {
+  fromLaPosteCode,
+  fromShip24Milestone,
   fuseMerchant,
   isCarrierDomain,
   isMeaningfulPlace,
+  isPersonalMailDomain,
   type MerchantFact,
   merchantNameFromDomain,
   type PlaceFact,
   type SourceKind,
+  type StatusFact,
   shipperFromEvent,
   shopName,
 } from "@coly/core";
@@ -26,6 +30,10 @@ const trackingKind = (s: TrackingSnapshot): SourceKind =>
   s.source === "laposte" ? "official_api" : "aggregator";
 
 // Nettoyé à la lecture aussi : les noms stockés avant une amélioration en profitent sans resynchro.
+/** Un marchand écrit depuis son domaine : ni un transporteur, ni une messagerie personnelle. */
+const fromMerchant = (s: Sighting) =>
+  !isCarrierDomain(s.senderDomain) && !isPersonalMailDomain(s.senderDomain);
+
 const senderLabel = (s: Sighting) =>
   (s.senderName && shopName(s.senderName)) || merchantNameFromDomain(s.senderDomain);
 
@@ -47,7 +55,7 @@ export function merchantFacts(row: ShipmentState, orphans: readonly Sighting[]):
       confidence: "certain",
       sourceRef: "email transporteur",
     });
-  for (const s of row.sightings.filter((x) => !isCarrierDomain(x.senderDomain)))
+  for (const s of row.sightings.filter(fromMerchant))
     facts.push({
       field: "merchant",
       value: senderLabel(s),
@@ -73,12 +81,7 @@ export function merchantFacts(row: ShipmentState, orphans: readonly Sighting[]):
   if (first !== undefined)
     for (const s of orphans) {
       const delta = (first - Date.parse(s.date)) / DAY_MS;
-      if (
-        isCarrierDomain(s.senderDomain) ||
-        delta > NEARBY_DAYS_BEFORE ||
-        delta < -NEARBY_DAYS_AFTER
-      )
-        continue;
+      if (!fromMerchant(s) || delta > NEARBY_DAYS_BEFORE || delta < -NEARBY_DAYS_AFTER) continue;
       facts.push({
         field: "merchant",
         value: senderLabel(s),
@@ -88,6 +91,35 @@ export function merchantFacts(row: ShipmentState, orphans: readonly Sighting[]):
         observedAt: s.date,
       });
     }
+  return facts;
+}
+
+export function statusFacts(row: ShipmentState): StatusFact[] {
+  const facts: StatusFact[] = [];
+  for (const snapshot of row.snapshots) {
+    const status =
+      snapshot.source === "laposte"
+        ? fromLaPosteCode(snapshot.lastEvent?.code)
+        : fromShip24Milestone(snapshot.sourceStatus);
+    if (status)
+      facts.push({
+        field: "status",
+        value: status,
+        kind: trackingKind(snapshot),
+        confidence: "certain",
+        sourceRef: `suivi ${snapshot.source}`,
+        ...(snapshot.lastEvent?.at && { observedAt: snapshot.lastEvent.at }),
+      });
+  }
+  for (const e of row.carrierEmails)
+    facts.push({
+      field: "status",
+      value: e.kind,
+      kind: "carrier_email",
+      confidence: "certain",
+      sourceRef: "email transporteur",
+      observedAt: e.receivedAt,
+    });
   return facts;
 }
 

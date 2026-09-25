@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decideMailRead,
   isCarrierDomain,
+  isPersonalMailDomain,
   merchantNameFromDomain,
   senderName,
 } from "./mail-filter.ts";
@@ -62,6 +63,16 @@ describe("isCarrierDomain", () => {
     expect(isCarrierDomain("network1.pickup.fr")).toBe(true);
     expect(isCarrierDomain("notif-colissimo-laposte.info")).toBe(true);
     expect(isCarrierDomain("bambinou.com")).toBe(false);
+  });
+});
+
+describe("isPersonalMailDomain", () => {
+  it("reconnaît les messageries personnelles : l'email vient d'une personne, pas d'un marchand", () => {
+    expect(isPersonalMailDomain("gmail.com")).toBe(true);
+    expect(isPersonalMailDomain("orange.fr")).toBe(true);
+    expect(isPersonalMailDomain("laposte.net")).toBe(true);
+    expect(isPersonalMailDomain("justineclenquet.com")).toBe(false);
+    expect(isPersonalMailDomain("notif.laposte.fr")).toBe(false);
   });
 });
 

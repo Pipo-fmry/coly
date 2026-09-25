@@ -8,6 +8,8 @@ import type { UserStatus } from "./index.ts";
 export interface HomeShipment {
   id: string;
   merchant: string;
+  /** Marchand déduit sans confirmation (ADR 0016) : à afficher comme tel. */
+  merchantProbable?: boolean;
   carrier: string;
   status: UserStatus | undefined;
   /** Nom du lieu de retrait, tel que donné par la source (dédoublonnage inter-réseaux : plus tard). */

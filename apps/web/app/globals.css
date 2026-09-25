@@ -451,3 +451,10 @@ code {
   border: 1px solid var(--divider);
   font-weight: 600;
 }
+
+.probable {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
