@@ -150,7 +150,9 @@ export async function downloadImage(
     () => undefined,
   );
   const mimeType = response?.headers.get("content-type")?.split(";")[0] ?? "";
-  if (!response?.ok || !IMAGE_TYPES.has(mimeType)) return undefined;
+  // Une redirection ne doit pas mener hors https (ex. vers un service local).
+  if (!response?.ok || !response.url.startsWith("https://") || !IMAGE_TYPES.has(mimeType))
+    return undefined;
   const bytes = Buffer.from(await response.arrayBuffer());
   return sizeOk(bytes) ? { mimeType, bytes } : undefined;
 }
