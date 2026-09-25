@@ -14,7 +14,7 @@ export type MailDecision =
 
 /** Domaines d'expéditeurs transporteurs : leurs emails concernent toujours un colis. */
 const CARRIER_SENDERS =
-  /@([a-z0-9-]+\.)*(laposte\.fr|colissimo\.fr|chronopost\.fr|dpd\.(fr|com)|pickup\.fr|mondialrelay\.(fr|com)|inpost\.[a-z]+|relaiscolis\.com|colisprive\.(fr|com)|gls-(france\.com|group\.eu)|ups\.com|dhl\.(com|fr|de)|fedex\.com|vintedgo\.com)>?$/i;
+  /@([a-z0-9-]+\.)*(laposte\.fr|colissimo\.fr|chronopost\.fr|dpd\.(fr|com)|pickup\.fr|notif-colissimo-laposte\.info|mondialrelay\.(fr|com)|inpost\.[a-z]+|relaiscolis\.com|colisprive\.(fr|com)|gls-(france\.com|group\.eu)|ups\.com|dhl\.(com|fr|de)|fedex\.com|vintedgo\.com)>?$/i;
 
 /** Sujets transactionnels : une commande ou un colis précis, pas une offre. */
 const TRANSACTIONAL_SUBJECT =
@@ -39,4 +39,15 @@ export function decideMailRead(header: MailHeader): MailDecision {
   if (FEEDBACK_SUBJECT.test(subject)) return { read: false, reason: "feedback" };
   if (TRANSACTIONAL_SUBJECT.test(subject)) return { read: true, reason: "transactional_subject" };
   return { read: false, reason: "not_transactional" };
+}
+
+/** Marchand : premier expéditeur qui n'est pas un transporteur (ceux-là écrivent pour le compte d'un autre). */
+export const merchantSender = <T extends { senderDomain: string }>(
+  senders: readonly T[],
+): T | undefined => senders.find((s) => !CARRIER_SENDERS.test(`@${s.senderDomain}`));
+
+/** Nom affiché de l'expéditeur (« Caats <no-reply@shopifyemail.com> » → « Caats »), borné. */
+export function senderName(from: string): string | undefined {
+  const name = /^\s*"?([^"<]{1,80}?)"?\s*</.exec(from.slice(0, MAX_HEADER_LENGTH))?.[1]?.trim();
+  return name && !name.includes("@") ? name : undefined;
 }

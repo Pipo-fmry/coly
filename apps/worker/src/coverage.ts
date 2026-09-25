@@ -69,9 +69,8 @@ function row(shipments: readonly ShipmentState[], truth: GroundTruth, now: Date)
       address: ratio(pickups, (s: ShipmentState) => Boolean(s.placeAddress)),
       // Aucune source ne fournit encore de date limite : l'indicateur le rendra visible.
       deadline: ratio(pickups, () => false),
-      codeOrQr: ratio(pickups, (s: ShipmentState) =>
-        s.carrierEmails.some((e) => e.hasPickupQrCode),
-      ),
+      // Accessible = affichable dans l'app, pas seulement présent dans un email.
+      codeOrQr: ratio(pickups, (s: ShipmentState) => Boolean(s.pickup?.code || s.pickup?.image)),
     },
   };
 }

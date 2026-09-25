@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideMailRead } from "./mail-filter.ts";
+import { decideMailRead, merchantSender, senderName } from "./mail-filter.ts";
 
 const read = (from: string, subject: string) => decideMailRead({ from, subject });
 
@@ -49,5 +49,37 @@ describe("decideMailRead — robustesse", () => {
     const start = performance.now();
     decideMailRead({ from: `a@${"9".repeat(50_000)}.fr`, subject: "9".repeat(50_000) });
     expect(performance.now() - start).toBeLessThan(50);
+  });
+});
+
+describe("merchantSender", () => {
+  const from = (...domains: string[]) => domains.map((senderDomain) => ({ senderDomain }));
+
+  it("préfère le premier expéditeur qui n'est pas un transporteur", () => {
+    expect(
+      merchantSender(from("network1.pickup.fr", "information.dpd.fr", "bambinou.com")),
+    ).toEqual({ senderDomain: "bambinou.com" });
+  });
+
+  it("reconnaît les domaines de notification Colissimo comme transporteur", () => {
+    expect(merchantSender(from("notif-colissimo-laposte.info", "undiz.com"))?.senderDomain).toBe(
+      "undiz.com",
+    );
+  });
+
+  it("ne renvoie rien quand seuls des transporteurs ont écrit", () => {
+    expect(merchantSender(from("chronopost.fr", "chronopost.fr"))).toBeUndefined();
+  });
+});
+
+describe("senderName", () => {
+  it("lit le nom affiché de l'expéditeur, celui de la boutique sur une plateforme", () => {
+    expect(senderName("Caats <no-reply@shopifyemail.com>")).toBe("Caats");
+    expect(senderName('"La Fnac" <fnac@fnac.com>')).toBe("La Fnac");
+  });
+
+  it("ne renvoie rien sans nom affiché", () => {
+    expect(senderName("noreply@chronopost.fr")).toBeUndefined();
+    expect(senderName("<noreply@chronopost.fr>")).toBeUndefined();
   });
 });

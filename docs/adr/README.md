@@ -22,3 +22,4 @@ Une décision structurante = un fichier, numéroté, jamais réécrit une fois a
 | [0015](0015-information-la-plus-juste.md) | L'information la plus juste, d'où qu'elle vienne | Accepté |
 | [0016](0016-faits-et-moteur-de-fusion.md) | Faits typés et moteur de fusion unique | Accepté |
 | [0017](0017-extraction-generique-des-emails.md) | Extraction générique des emails : standards, puis IA avec garde-fous | Accepté |
+| [0018](0018-preuve-de-retrait-et-expediteur-stockes.md) | Stocker la preuve de retrait et le nom d'expéditeur (prototype local) | Accepté |

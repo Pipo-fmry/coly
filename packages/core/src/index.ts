@@ -8,6 +8,7 @@ export * from "./carrier-emails.ts";
 export * from "./carriers.ts";
 export * from "./home.ts";
 export * from "./mail-filter.ts";
+export * from "./pickup.ts";
 export * from "./status.ts";
 export * from "./tracking-info.ts";
 

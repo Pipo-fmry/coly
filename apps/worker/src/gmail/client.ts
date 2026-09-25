@@ -35,11 +35,23 @@ export interface MailMessage {
   subject: string;
   text: string;
   urls: string[];
+  images: MailImage[];
+}
+
+/** Image d'un email : jointe (inline ou pièce jointe) ou désignée par une adresse. Rien n'est téléchargé ici. */
+export interface MailImage {
+  /** Nom, identifiant, texte alternatif et adresse, pour reconnaître un QR ou un code-barres. */
+  hint: string;
+  mimeType?: string;
+  data?: string;
+  attachmentId?: string;
+  url?: string;
 }
 
 interface Part {
   mimeType?: string;
-  body?: { data?: string };
+  filename?: string;
+  body?: { data?: string; attachmentId?: string };
   parts?: Part[];
   headers?: { name: string; value: string }[];
 }
@@ -73,6 +85,76 @@ function collectBodies(part: Part, out: { html: string[]; plain: string[] }): vo
     else if (part.mimeType === "text/plain") out.plain.push(decoded);
   }
   for (const child of part.parts ?? []) collectBodies(child, out);
+}
+
+function collectImageParts(part: Part, out: MailImage[]): void {
+  if (part.mimeType?.startsWith("image/")) {
+    const contentId = part.headers
+      ?.find((h) => h.name.toLowerCase() === "content-id")
+      ?.value.replace(/[<>]/g, "");
+    const image: MailImage = {
+      hint: [part.filename, contentId && `cid:${contentId}`].filter(Boolean).join(" "),
+      mimeType: part.mimeType,
+    };
+    if (part.body?.data) image.data = part.body.data;
+    if (part.body?.attachmentId) image.attachmentId = part.body.attachmentId;
+    out.push(image);
+  }
+  for (const child of part.parts ?? []) collectImageParts(child, out);
+}
+
+/** Images jointes, complétées par le texte alternatif des balises qui les affichent, puis images distantes. */
+function collectImages(payload: Part, html: string): MailImage[] {
+  const images: MailImage[] = [];
+  collectImageParts(payload, images);
+  for (const [tag] of html.matchAll(/<img\b[^>]{0,2000}>/gi)) {
+    const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1]?.replace(/&amp;/g, "&") ?? "";
+    const alt = /\balt\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1] ?? "";
+    if (src.startsWith("cid:")) {
+      const part = images.find((i) => i.hint.includes(src));
+      if (part && alt) part.hint += ` ${alt}`;
+    } else if (src.startsWith("https://")) images.push({ hint: `${src} ${alt}`, url: src });
+  }
+  return images;
+}
+
+const MAX_IMAGE_BYTES = 1_000_000;
+/** En dessous, c'est un pixel de suivi (1×1), pas un code lisible. */
+const MIN_IMAGE_BYTES = 200;
+const sizeOk = (bytes: Buffer) =>
+  bytes.length >= MIN_IMAGE_BYTES && bytes.length <= MAX_IMAGE_BYTES;
+/** Formats matriciels seulement : un SVG servi par l'app pourrait porter du script. */
+export const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/** Télécharge une image d'email telle quelle (jamais régénérée), bornée en taille et limitée aux images. */
+export async function downloadImage(
+  token: string,
+  messageId: string,
+  image: MailImage,
+): Promise<{ mimeType: string; bytes: Buffer } | undefined> {
+  if (image.data || image.attachmentId) {
+    const data =
+      image.data ??
+      (
+        await get<{ data: string }>(
+          token,
+          `/messages/${messageId}/attachments/${image.attachmentId}`,
+        )
+      ).data;
+    const bytes = Buffer.from(data, "base64url");
+    const mimeType = image.mimeType ?? "";
+    return IMAGE_TYPES.has(mimeType) && sizeOk(bytes) ? { mimeType, bytes } : undefined;
+  }
+  if (!image.url) return undefined;
+  const response = await fetch(image.url, { signal: AbortSignal.timeout(10_000) }).catch(
+    () => undefined,
+  );
+  const mimeType = response?.headers.get("content-type")?.split(";")[0] ?? "";
+  // Une redirection ne doit pas mener hors https (ex. vers un service local).
+  if (!response?.ok || !response.url.startsWith("https://") || !IMAGE_TYPES.has(mimeType))
+    return undefined;
+  const bytes = Buffer.from(await response.arrayBuffer());
+  return sizeOk(bytes) ? { mimeType, bytes } : undefined;
 }
 
 const ENTITIES: Record<string, string> = {
@@ -158,5 +240,6 @@ export async function getMessage(token: string, id: string): Promise<MailMessage
     subject: header("subject"),
     text,
     urls: extractUrls(html, text),
+    images: collectImages(message.payload, html),
   };
 }

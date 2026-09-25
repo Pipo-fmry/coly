@@ -75,24 +75,24 @@ export default async function Home() {
                 className="place"
                 href={only ? shipmentHref(only) : `/lieu/${encodeURIComponent(place.name)}`}
               >
-                <div>
-                  <div className="place-name">
-                    {place.name} · {place.shipments.length} colis
-                  </div>
-                  {(place.earliestDeadline || place.oldestArrival) && (
-                    <div className="place-meta">
-                      {place.earliestDeadline
-                        ? `Avant le ${formatDate(place.earliestDeadline)}`
-                        : `Arrivé ${since(place.oldestArrival ?? "")}`}
-                    </div>
-                  )}
+                <div className="place-name">
+                  {place.shipments.map((s) => s.merchant).join(", ")}
                 </div>
-                <div className="place-items">
-                  {place.shipments.map((s) => (
-                    <span key={s.id} className="place-item">
-                      {s.merchant}
-                    </span>
-                  ))}
+                <div>
+                  <div className="place-where">
+                    {place.name}
+                    {place.shipments.length > 1 ? ` · ${place.shipments.length} colis` : ""}
+                  </div>
+                  <div className="place-meta">
+                    {[
+                      place.earliestDeadline
+                        ? `Avant le ${formatDate(place.earliestDeadline)}`
+                        : place.oldestArrival && `Arrivé ${since(place.oldestArrival)}`,
+                      [...new Set(place.shipments.map((s) => s.carrier))].join(", "),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
                 </div>
               </Link>
             );
@@ -102,7 +102,13 @@ export default async function Home() {
 
       <Section title="En route" items={view.inTransit} />
       <Section title="Statut inconnu" items={view.unknown} />
-      <Section title="Terminés" items={view.done} />
+      {/* Les colis terminés ne servent plus au quotidien : un lien vers l'historique, pas la liste. */}
+      {view.done.length > 0 && (
+        <Link className="history-link" href="/historique">
+          <span>Historique</span>
+          <span className="meta">{view.done.length} colis terminés</span>
+        </Link>
+      )}
     </main>
   );
 }

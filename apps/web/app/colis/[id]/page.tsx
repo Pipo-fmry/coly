@@ -1,11 +1,15 @@
 import { readState } from "@coly/worker/sync";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateTime, since } from "../../format";
+import { BackLink } from "../../back-link";
+import { formatDate, formatDateTime, since } from "../../format";
+import { PlaceMap } from "../../place-map";
 import {
   availableSince,
   carrierName,
+  DONE,
+  destination,
   displayMerchant,
+  estimatedDelivery,
   gmailLink,
   pickupQrEmail,
   STATUS_LABEL,
@@ -25,33 +29,20 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const carrier = carrierName(shipment);
   const events = timeline(shipment);
   const arrived = availableSince(shipment);
-  const qrEmail = pickupQrEmail(shipment);
+  const pickup = shipment.pickup;
+  const proofEmail = pickup?.messageId ?? pickupQrEmail(shipment)?.messageId;
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
   const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
-  const upcoming =
-    shipment.status !== "available_for_pickup"
-      ? shipment.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint)
-      : undefined;
+  // En route : dernière nouvelle puis destination, le trajet complet vient ensuite.
+  const onTheWay =
+    shipment.status !== "available_for_pickup" && !(shipment.status && DONE.has(shipment.status));
+  const latest = events[0];
+  const where = destination(shipment);
+  const expected = estimatedDelivery(shipment);
 
   return (
     <main className="screen">
-      <Link href="/" className="back" aria-label="Retour">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14" />
-          <path d="M5 12l6 6" />
-          <path d="M5 12l6 -6" />
-        </svg>
-      </Link>
+      <BackLink />
 
       <header className="detail-header">
         <span className={`pill pill-${status?.tone ?? "done"}`}>
@@ -64,45 +55,90 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
       </header>
 
       {shipment.status === "available_for_pickup" && (
-        <section className="place">
-          <div>
-            <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
-            {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
-            {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
-          </div>
-          <div className="place-actions">
-            {qrEmail && (
+        <>
+          {/* L'information n°1 au relais : le code ou le QR, tel que le transporteur l'a envoyé. */}
+          <section className="card pickup-proof">
+            <span className="card-label">À présenter au relais</span>
+            {pickup?.image && (
+              // biome-ignore lint/performance/noImgElement: image servie telle quelle, pas d'optimisation voulue
+              <img
+                className="pickup-image"
+                src={`/api/retrait/${encodeURIComponent(shipment.id)}`}
+                alt="QR code de retrait"
+              />
+            )}
+            {pickup?.code && <p className="pickup-code">{pickup.code}</p>}
+            {!pickup?.image && !pickup?.code && (
+              <p>
+                {proofEmail ? "Code non lu automatiquement." : "Aucun code trouvé dans tes emails."}
+              </p>
+            )}
+            {!pickup?.image && proofEmail && (
               <a
-                className="button-primary"
-                href={gmailLink(qrEmail.messageId)}
+                className="button-secondary"
+                href={gmailLink(proofEmail)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                QR code de retrait
+                Ouvrir l'email du transporteur
               </a>
             )}
+          </section>
+
+          <section className="place">
+            <div>
+              <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
+              {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
+              {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
+            </div>
             {placeQuery && (
-              <a
-                className="button-on-dark"
-                href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Itinéraire
-              </a>
+              <>
+                <PlaceMap query={placeQuery} />
+                <a
+                  className="button-on-dark"
+                  href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Itinéraire
+                </a>
+              </>
             )}
-          </div>
-        </section>
+          </section>
+        </>
       )}
 
-      {upcoming?.pickupPoint && (
-        <section className="empty">
-          <h2>Arrive au relais {upcoming.pickupPoint.name}</h2>
-          <p>
-            {upcoming.pickupPoint.address}
-            {upcoming.availableOn ? ` · prévu le ${upcoming.availableOn}` : ""}
-          </p>
-        </section>
+      {onTheWay && (
+        <>
+          <section className="card">
+            <span className="card-label">Dernière nouvelle</span>
+            <h2>{latest?.label ?? "Aucune nouvelle du transporteur"}</h2>
+            {latest && (
+              <p>
+                {[latest.at && formatDateTime(latest.at), latest.location]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </section>
+          <section className="card">
+            <span className="card-label">Arrive à</span>
+            <h2>{where?.name ?? "Pas encore communiqué"}</h2>
+            {(where?.address || where?.on || expected) && (
+              <p>
+                {[
+                  where?.address,
+                  where?.on
+                    ? `prévu le ${where.on}`
+                    : expected && `prévu le ${formatDate(expected)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            {where?.address && <PlaceMap query={`${where.name} ${where.address}`} />}
+          </section>
+        </>
       )}
 
       <TruthCheck id={shipment.id} shown={shipment.status ?? null} />

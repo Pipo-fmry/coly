@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "web",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": ["pnpm", "--filter", "@coly/web", "dev"],
+      "port": 3000
+    },
+    {
       "name": "web-demo",
       "runtimeExecutable": "corepack",
       "runtimeArgs": ["pnpm", "--filter", "@coly/web", "demo"],

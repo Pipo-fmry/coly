@@ -5,6 +5,7 @@ import {
   type HomeShipment,
   type HomeView,
   isMeaningfulPlace,
+  merchantSender,
   mergeTimeline,
   type SourcedEvent,
   type UserStatus,
@@ -31,6 +32,8 @@ export const SOURCES: Record<string, string> = {
   ship24: "Ship24",
   email: "email transporteur",
 };
+
+export const DONE: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
 
 export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> = {
   ordered: { label: "Commandé", tone: "transit" },
@@ -69,8 +72,37 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
-/** Nom du marchand : celui donné par le transporteur s'il existe, sinon déduit du domaine. */
-export const displayMerchant = (s: ShipmentState) => s.merchantLabel ?? merchantName(s.merchant);
+/**
+ * Nom du marchand : celui donné par le transporteur s'il existe, sinon le premier expéditeur qui n'est pas un
+ * transporteur (son nom affiché, sinon son domaine). Un colis dont seul le transporteur a écrit n'a pas de marchand
+ * connu : on ne le remplace pas par le nom du transporteur, qui ne dit rien de l'achat.
+ */
+export const displayMerchant = (s: ShipmentState) => {
+  const sender = merchantSender(s.sightings);
+  return (
+    s.merchantLabel ??
+    sender?.senderName ??
+    (sender ? merchantName(sender.senderDomain) : "Marchand inconnu")
+  );
+};
+
+/** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */
+export function destination(
+  s: ShipmentState,
+): { name: string; address?: string; on?: string } | undefined {
+  const announced = s.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint);
+  if (announced?.pickupPoint)
+    return {
+      ...announced.pickupPoint,
+      ...(announced.availableOn && { on: announced.availableOn }),
+    };
+  if (s.placeName) return { name: s.placeName, ...(s.placeAddress && { address: s.placeAddress }) };
+  return undefined;
+}
+
+/** Livraison estimée par une source de suivi, si elle en donne une. */
+export const estimatedDelivery = (s: ShipmentState) =>
+  s.snapshots.find((snap) => snap.estimatedDelivery)?.estimatedDelivery;
 
 /** Email transporteur contenant le QR code de retrait, le plus récent. */
 export const pickupQrEmail = (s: ShipmentState) =>
@@ -117,6 +149,10 @@ export function toHomeView(state: ColyState, now: Date): HomeView & { archived: 
     // Faute de nom de relais transmis par la source, on nomme le réseau plutôt que d'inventer.
     if (s.status === "available_for_pickup")
       home.placeName = s.placeName ?? `Point relais ${carrierName(s)}`;
+    else if (s.status && !DONE.has(s.status)) {
+      const where = destination(s);
+      if (where) home.placeName = where.name;
+    }
     if (s.lastUpdate) home.lastUpdate = s.lastUpdate;
     return home;
   });
