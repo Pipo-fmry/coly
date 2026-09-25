@@ -352,13 +352,6 @@ code {
   border-top: 1px solid var(--divider);
 }
 
-.place-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.button-primary,
 .button-on-dark {
   display: inline-flex;
   align-items: center;
@@ -368,11 +361,6 @@ code {
   border-radius: var(--radius-button);
   font-size: 15px;
   font-weight: 700;
-}
-
-.button-primary {
-  background: var(--brand-citron);
-  color: var(--brand-foret);
 }
 
 .button-on-dark {

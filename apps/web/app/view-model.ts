@@ -5,11 +5,11 @@ import {
   type HomeShipment,
   type HomeView,
   isMeaningfulPlace,
+  isTerminal,
   mergeTimeline,
   type SourcedEvent,
   type UserStatus,
 } from "@coly/core";
-import { shipmentMerchant } from "@coly/worker/facts";
 import type { ColyState, ShipmentState } from "@coly/worker/sync";
 
 export const CARRIERS: Record<string, string> = {
@@ -32,8 +32,6 @@ export const SOURCES: Record<string, string> = {
   ship24: "Ship24",
   email: "email transporteur",
 };
-
-export const DONE: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
 
 export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> = {
   ordered: { label: "Commandé", tone: "transit" },
@@ -65,18 +63,21 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
-/** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */
+/** En route : ni au point de retrait, ni terminé. */
+export const isOnTheWay = (s: ShipmentState) =>
+  s.status !== "available_for_pickup" && !isTerminal(s.status);
+
+/** Lieu où le colis va arriver (fusionné à la synchro), avec la date annoncée par le transporteur. */
 export function destination(
   s: ShipmentState,
 ): { name: string; address?: string; on?: string } | undefined {
-  const announced = s.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint);
-  if (announced?.pickupPoint)
-    return {
-      ...announced.pickupPoint,
-      ...(announced.availableOn && { on: announced.availableOn }),
-    };
-  if (s.placeName) return { name: s.placeName, ...(s.placeAddress && { address: s.placeAddress }) };
-  return undefined;
+  if (!s.placeName) return undefined;
+  const on = s.carrierEmails.findLast((e) => e.availableOn)?.availableOn;
+  return {
+    name: s.placeName,
+    ...(s.placeAddress && { address: s.placeAddress }),
+    ...(on && { on }),
+  };
 }
 
 /** Livraison estimée par une source de suivi, si elle en donne une. */
@@ -117,7 +118,7 @@ export function timeline(s: ShipmentState): SourcedEvent[] {
 export function toHomeView(state: ColyState, now: Date): HomeView & { archived: number } {
   const active = state.shipments.filter((s) => !s.presumedDone);
   const shipments: HomeShipment[] = active.map((s) => {
-    const merchant = shipmentMerchant(s, state);
+    const { merchant } = s;
     const home: HomeShipment = {
       id: s.id,
       // Jamais remplacé par le nom du transporteur, qui ne dit rien de l'achat.
@@ -131,7 +132,7 @@ export function toHomeView(state: ColyState, now: Date): HomeView & { archived: 
     // Faute de nom de relais transmis par la source, on nomme le réseau plutôt que d'inventer.
     if (s.status === "available_for_pickup")
       home.placeName = s.placeName ?? `Point relais ${carrierName(s)}`;
-    else if (s.status && !DONE.has(s.status)) {
+    else if (s.status && isOnTheWay(s)) {
       const where = destination(s);
       if (where) home.placeName = where.name;
     }

@@ -21,6 +21,10 @@ const RANK: Record<UserStatus, number> = {
 
 const TERMINAL = new Set<UserStatus>(["delivered", "picked_up", "returned"]);
 
+/** Colis terminé : livré, retiré ou retourné. */
+export const isTerminal = (status: UserStatus | undefined): boolean =>
+  status !== undefined && TERMINAL.has(status);
+
 /** Statuts Ship24 (`statusMilestone`) → statut Coly. */
 export function fromShip24Milestone(milestone: string | undefined): UserStatus | undefined {
   switch (milestone) {

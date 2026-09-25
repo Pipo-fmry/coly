@@ -6,9 +6,7 @@
 import {
   fromLaPosteCode,
   fromShip24Milestone,
-  fuseMerchant,
   isCarrierDomain,
-  isMeaningfulPlace,
   isPersonalMailDomain,
   type MerchantFact,
   merchantNameFromDomain,
@@ -18,7 +16,7 @@ import {
   shipperFromEvent,
   shopName,
 } from "@coly/core";
-import type { ColyState, ShipmentState, Sighting } from "./sync.ts";
+import type { ShipmentState, Sighting } from "./sync.ts";
 import type { TrackingSnapshot } from "./tracking/types.ts";
 
 /** Un email sans numéro est rattaché à un colis s'il arrive dans cette fenêtre autour du premier email du colis. */
@@ -151,7 +149,8 @@ export function placeFacts(row: ShipmentState): PlaceFact[] {
       });
     // Lieu d'un événement de mise en relais : moins sûr qu'un point de retrait déclaré.
     const pickup = snapshot.events.find((e) => PICKUP_EVENT.test(e.code ?? e.label));
-    if (isMeaningfulPlace(pickup?.location))
+    // Le moteur écarte les lieux inexploitables (ADR 0016).
+    if (pickup?.location)
       facts.push({
         field: "place",
         value: { name: pickup.location },
@@ -163,7 +162,3 @@ export function placeFacts(row: ShipmentState): PlaceFact[] {
   }
   return facts;
 }
-
-/** Marchand d'un colis, fusionné depuis toutes les sources, y compris les emails sans numéro de la boîte. */
-export const shipmentMerchant = (row: ShipmentState, state: Pick<ColyState, "readWithoutNumber">) =>
-  fuseMerchant(merchantFacts(row, state.readWithoutNumber));

@@ -3,7 +3,7 @@
  * Fonction pure : état + vérité de référence + heure courante → indicateurs, par transporteur et au global.
  */
 
-import { shipmentMerchant } from "./facts.ts";
+import { isTerminal } from "@coly/core";
 import type { GroundTruth } from "./ground-truth.ts";
 import type { ColyState, ShipmentState } from "./sync.ts";
 
@@ -38,8 +38,6 @@ export interface CoverageReport {
   carrierEmailsNotUnderstood: Record<string, number>;
 }
 
-const TERMINAL = new Set(["delivered", "picked_up", "returned"]);
-
 const ratio = (items: readonly unknown[], test: (x: never) => boolean): Ratio => ({
   hits: items.filter((x) => test(x as never)).length,
   total: items.length,
@@ -54,21 +52,16 @@ function median(values: number[]): number | null {
     : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 }
 
-function row(
-  shipments: readonly ShipmentState[],
-  truth: GroundTruth,
-  now: Date,
-  state: ColyState,
-): CoverageRow {
+function row(shipments: readonly ShipmentState[], truth: GroundTruth, now: Date): CoverageRow {
   const verified = shipments.filter((s) => truth[s.id]);
   const pickups = shipments.filter((s) => s.status === "available_for_pickup");
   const freshness = shipments
-    .filter((s) => s.lastUpdate && !(s.status && TERMINAL.has(s.status)))
+    .filter((s) => s.lastUpdate && !isTerminal(s.status))
     .map((s) => (now.getTime() - Date.parse(s.lastUpdate ?? "")) / 3_600_000);
 
   return {
     active: shipments.length,
-    merchant: ratio(shipments, (s: ShipmentState) => shipmentMerchant(s, state) !== undefined),
+    merchant: ratio(shipments, (s: ShipmentState) => s.merchant !== undefined),
     statusKnown: ratio(shipments, (s: ShipmentState) => s.status !== undefined),
     statusCorrect: ratio(verified, (s: ShipmentState) => truth[s.id]?.status === s.status),
     medianFreshnessHours: median(freshness),
@@ -92,11 +85,10 @@ export function computeCoverage(state: ColyState, truth: GroundTruth, now: Date)
       active.filter((s) => s.candidate.carrier === carrier),
       truth,
       now,
-      state,
     );
   return {
     generatedAt: now.toISOString(),
-    global: row(active, truth, now, state),
+    global: row(active, truth, now),
     byCarrier,
     presumedDone: state.shipments.length - active.length,
     carrierEmailsNotUnderstood: state.counts.carrierEmailsNotUnderstood ?? {},

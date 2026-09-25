@@ -124,7 +124,7 @@ const MIN_IMAGE_BYTES = 200;
 const sizeOk = (bytes: Buffer) =>
   bytes.length >= MIN_IMAGE_BYTES && bytes.length <= MAX_IMAGE_BYTES;
 /** Formats matriciels seulement : un SVG servi par l'app pourrait porter du script. */
-export const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 /** Télécharge une image d'email telle quelle (jamais régénérée), bornée en taille et limitée aux images. */
 export async function downloadImage(

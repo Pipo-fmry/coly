@@ -65,7 +65,7 @@ async function main(): Promise<void> {
   for (const row of state.shipments.filter((s) => !s.presumedDone)) {
     const first = row.sightings[0];
     print(
-      `• ${first?.date} ${row.merchant} — ${row.candidate.carrier} ${row.id} → ${row.status ?? "statut inconnu"}${row.placeName ? ` @ ${row.placeName}` : ""}`,
+      `• ${first?.date} ${row.merchant?.value ?? "marchand inconnu"} — ${row.candidate.carrier} ${row.id} → ${row.status ?? "statut inconnu"}${row.placeName ? ` @ ${row.placeName}` : ""}`,
     );
     for (const snapshot of row.snapshots)
       print(`    ${snapshot.source.padEnd(8)} ${describe(snapshot)}`);

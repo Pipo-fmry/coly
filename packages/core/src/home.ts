@@ -4,6 +4,7 @@
  */
 
 import type { UserStatus } from "./index.ts";
+import { isTerminal } from "./status.ts";
 
 export interface HomeShipment {
   id: string;
@@ -71,8 +72,7 @@ export function buildHome(shipments: readonly HomeShipment[], now: Date): HomeVi
       if (s.availableSince && (!place.oldestArrival || s.availableSince < place.oldestArrival))
         place.oldestArrival = s.availableSince;
       places.set(name, place);
-    } else if (s.status === "delivered" || s.status === "picked_up" || s.status === "returned")
-      view.done.push(s);
+    } else if (isTerminal(s.status)) view.done.push(s);
     else if (s.status === undefined) view.unknown.push(s);
     else view.inTransit.push(s);
   }

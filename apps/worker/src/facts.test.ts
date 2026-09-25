@@ -6,7 +6,6 @@ import type { ShipmentState, Sighting } from "./sync.ts";
 const shipment = (s: Partial<ShipmentState>): ShipmentState => ({
   id: "X1",
   candidate: { carrier: "chronopost", trackingNumber: "X1", via: "pattern" },
-  merchant: "chronopost.fr",
   sightings: [{ date: "2026-09-24", senderDomain: "chronopost.fr", messageId: "c1" }],
   carrierEmails: [],
   snapshots: [],

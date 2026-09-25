@@ -17,25 +17,29 @@ import {
   decideMailRead,
   detectTrackingNumbers,
   findPickupCode,
+  fuseMerchant,
   fusePlace,
   fuseStatus,
   isPresumedDone,
+  isTerminal,
   type MailDecision,
   parseCarrierEmail,
   pickupImages,
+  type Resolved,
   routeFor,
   senderName,
   type TrackingCandidate,
   type UserStatus,
 } from "@coly/core";
 import { config } from "./config.ts";
-import { placeFacts, statusFacts } from "./facts.ts";
+import { merchantFacts, placeFacts, statusFacts } from "./facts.ts";
 import {
   buildQuery,
   downloadImage,
   getMessage,
   getMessageHeader,
   listMessageIds,
+  type MailMessage,
 } from "./gmail/client.ts";
 import { getAccessToken } from "./gmail/oauth.ts";
 import { dataPath } from "./paths.ts";
@@ -48,7 +52,6 @@ export const STATE_FILE = dataPath("state.json");
 const PICKUP_IMAGES_DIR = dataPath("pickup");
 export const SYNC_WINDOW_DAYS = 90;
 const STATE_VERSION = 3;
-const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
 
 /** Ce qui est conservé d'un email lu : aucune donnée de contenu. */
 export interface Sighting {
@@ -82,7 +85,8 @@ export interface CarrierEmailFact {
 export interface ShipmentState {
   id: string;
   candidate: TrackingCandidate;
-  merchant: string;
+  /** Marchand fusionné depuis toutes les sources (ADR 0016), recalculé à chaque synchro. */
+  merchant?: Resolved<string>;
   /** Nom du marchand donné par le transporteur (ex. « Caats »), plus lisible que le domaine. */
   merchantLabel?: string;
   sightings: Sighting[];
@@ -169,7 +173,7 @@ function lastSeen(row: ShipmentState): string {
 /** Code et image de retrait d'un email. Au mieux : un échec de téléchargement ne bloque jamais la synchro. */
 async function pickupProof(
   token: string,
-  message: Awaited<ReturnType<typeof getMessage>>,
+  message: MailMessage,
   trackingNumber: string,
 ): Promise<PickupProof | undefined> {
   const proof: PickupProof = { messageId: message.id, receivedAt: message.date.toISOString() };
@@ -209,6 +213,11 @@ export async function readPickupImage(
   if (!image) return undefined;
   const bytes = await readFile(join(PICKUP_IMAGES_DIR, image.file)).catch(() => undefined);
   return bytes && { mimeType: image.mimeType, bytes };
+}
+
+/** Colis par son numéro (identifiant d'URL décodé). */
+export async function findShipment(id: string): Promise<ShipmentState | undefined> {
+  return (await readState())?.shipments.find((s) => s.id === id);
 }
 
 export async function readState(): Promise<ColyState | undefined> {
@@ -301,7 +310,6 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
       const row = rows.get(candidate.trackingNumber) ?? {
         id: candidate.trackingNumber,
         candidate,
-        merchant: sighting.senderDomain,
         sightings: [],
         carrierEmails: [],
         snapshots: [],
@@ -334,7 +342,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
   for (const row of byRecency) {
     const url = carrierTrackingUrl(row.candidate.carrier, row.id);
     if (url) row.trackingUrl = url;
-    if (row.status && TERMINAL.has(row.status)) continue;
+    if (isTerminal(row.status)) continue;
     if (row.presumedDone || isPresumedDone(lastSeen(row), row.status !== undefined, now)) {
       row.presumedDone = true;
       continue;
@@ -356,6 +364,12 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     }
     if (snapshots.length > 0) row.snapshots = snapshots;
     refreshDerived(row);
+  }
+  // Marchand : pour tous les colis, terminés compris, car un email sans numéro reçu depuis peut le révéler.
+  for (const row of byRecency) {
+    const merchant = fuseMerchant(merchantFacts(row, readWithoutNumber));
+    if (merchant) row.merchant = merchant;
+    else delete row.merchant;
   }
 
   const state: ColyState = {

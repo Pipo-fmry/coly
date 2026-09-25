@@ -6,7 +6,6 @@ const now = new Date("2026-09-23T12:00:00Z");
 
 const shipment = (s: Partial<ShipmentState> & { id: string; carrier: string }): ShipmentState => ({
   candidate: { carrier: s.carrier as never, trackingNumber: s.id, via: "pattern" },
-  merchant: "exemple.fr",
   sightings: [],
   carrierEmails: [],
   snapshots: [],
@@ -37,7 +36,7 @@ describe("computeCoverage", () => {
         carrier: "gls",
         status: "available_for_pickup",
         placeName: "RELAIS",
-        merchantLabel: "Caats",
+        merchant: { value: "Caats", confidence: "certain", sources: ["email transporteur"] },
         placeAddress: "1 RUE X 13006 Marseille",
         lastUpdate: "2026-09-23T10:00:00Z",
         carrierEmails: [
@@ -81,7 +80,7 @@ describe("computeCoverage", () => {
     expect(report.presumedDone).toBe(1);
   });
 
-  it("mesure le marchand connu, toutes sources fusionnées", () => {
+  it("mesure le marchand connu (fusionné à la synchro)", () => {
     expect(report.global.merchant).toEqual({ hits: 1, total: 4 });
   });
 

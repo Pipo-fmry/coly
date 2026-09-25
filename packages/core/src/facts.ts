@@ -41,7 +41,6 @@ export interface Place {
 export type MerchantFact = FactBase<"merchant", string>;
 export type PlaceFact = FactBase<"place", Place>;
 export type StatusFact = FactBase<"status", UserStatus>;
-export type ShipmentFact = MerchantFact | PlaceFact | StatusFact;
 
 export interface Resolved<V> {
   value: V;

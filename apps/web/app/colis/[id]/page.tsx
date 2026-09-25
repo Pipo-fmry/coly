@@ -1,5 +1,4 @@
-import { shipmentMerchant } from "@coly/worker/facts";
-import { readState } from "@coly/worker/sync";
+import { findShipment } from "@coly/worker/sync";
 import { notFound } from "next/navigation";
 import { BackLink } from "../../back-link";
 import { formatDate, formatDateTime, since } from "../../format";
@@ -7,10 +6,10 @@ import { PlaceMap } from "../../place-map";
 import {
   availableSince,
   carrierName,
-  DONE,
   destination,
   estimatedDelivery,
   gmailLink,
+  isOnTheWay,
   pickupQrEmail,
   STATUS_LABEL,
   timeline,
@@ -21,10 +20,9 @@ export const dynamic = "force-dynamic";
 
 export default async function ShipmentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const state = await readState();
-  const shipment = state?.shipments.find((s) => s.id === decodeURIComponent(id));
-  if (!state || !shipment) notFound();
-  const merchant = shipmentMerchant(shipment, state);
+  const shipment = await findShipment(decodeURIComponent(id));
+  if (!shipment) notFound();
+  const { merchant } = shipment;
 
   const status = shipment.status ? STATUS_LABEL[shipment.status] : undefined;
   const carrier = carrierName(shipment);
@@ -35,8 +33,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
   const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
   // En route : dernière nouvelle puis destination, le trajet complet vient ensuite.
-  const onTheWay =
-    shipment.status !== "available_for_pickup" && !(shipment.status && DONE.has(shipment.status));
+  const onTheWay = isOnTheWay(shipment);
   const latest = events[0];
   const where = destination(shipment);
   const expected = estimatedDelivery(shipment);
