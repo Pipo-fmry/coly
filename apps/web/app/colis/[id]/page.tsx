@@ -1,11 +1,14 @@
 import { readState } from "@coly/worker/sync";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDateTime, since } from "../../format";
+import { formatDate, formatDateTime, since } from "../../format";
 import {
   availableSince,
   carrierName,
+  DONE,
+  destination,
   displayMerchant,
+  estimatedDelivery,
   gmailLink,
   pickupQrEmail,
   STATUS_LABEL,
@@ -28,10 +31,12 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const qrEmail = pickupQrEmail(shipment);
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
   const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
-  const upcoming =
-    shipment.status !== "available_for_pickup"
-      ? shipment.carrierEmails.findLast((e) => e.kind === "in_transit" && e.pickupPoint)
-      : undefined;
+  // En route : dernière nouvelle puis destination, le trajet complet vient ensuite.
+  const onTheWay =
+    shipment.status !== "available_for_pickup" && !(shipment.status && DONE.has(shipment.status));
+  const latest = events[0];
+  const where = destination(shipment);
+  const expected = estimatedDelivery(shipment);
 
   return (
     <main className="screen">
@@ -95,14 +100,36 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      {upcoming?.pickupPoint && (
-        <section className="empty">
-          <h2>Arrive au relais {upcoming.pickupPoint.name}</h2>
-          <p>
-            {upcoming.pickupPoint.address}
-            {upcoming.availableOn ? ` · prévu le ${upcoming.availableOn}` : ""}
-          </p>
-        </section>
+      {onTheWay && (
+        <>
+          <section className="card">
+            <span className="card-label">Dernière nouvelle</span>
+            <h2>{latest?.label ?? "Aucune nouvelle du transporteur"}</h2>
+            {latest && (
+              <p>
+                {[latest.at && formatDateTime(latest.at), latest.location]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </section>
+          <section className="card">
+            <span className="card-label">Arrive à</span>
+            <h2>{where?.name ?? "Pas encore communiqué"}</h2>
+            {(where?.address || where?.on || expected) && (
+              <p>
+                {[
+                  where?.address,
+                  where?.on
+                    ? `prévu le ${where.on}`
+                    : expected && `prévu le ${formatDate(expected)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </section>
+        </>
       )}
 
       <TruthCheck id={shipment.id} shown={shipment.status ?? null} />

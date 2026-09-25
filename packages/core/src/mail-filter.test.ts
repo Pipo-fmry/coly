@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideMailRead } from "./mail-filter.ts";
+import { decideMailRead, merchantDomain } from "./mail-filter.ts";
 
 const read = (from: string, subject: string) => decideMailRead({ from, subject });
 
@@ -49,5 +49,21 @@ describe("decideMailRead — robustesse", () => {
     const start = performance.now();
     decideMailRead({ from: `a@${"9".repeat(50_000)}.fr`, subject: "9".repeat(50_000) });
     expect(performance.now() - start).toBeLessThan(50);
+  });
+});
+
+describe("merchantDomain", () => {
+  it("préfère le premier expéditeur qui n'est pas un transporteur", () => {
+    expect(merchantDomain(["network1.pickup.fr", "information.dpd.fr", "bambinou.com"])).toBe(
+      "bambinou.com",
+    );
+  });
+
+  it("reconnaît les domaines de notification Colissimo comme transporteur", () => {
+    expect(merchantDomain(["notif-colissimo-laposte.info", "undiz.com"])).toBe("undiz.com");
+  });
+
+  it("ne renvoie rien quand seuls des transporteurs ont écrit", () => {
+    expect(merchantDomain(["chronopost.fr", "chronopost.fr"])).toBeUndefined();
   });
 });
