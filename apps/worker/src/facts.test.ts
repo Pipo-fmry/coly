@@ -20,14 +20,14 @@ const orphan = (date: string, senderDomain: string, senderName?: string): Sighti
   ...(senderName && { senderName }),
 });
 
-const tracked = (label: string): Partial<ShipmentState> => ({
+const tracked = (label: string, location?: string): Partial<ShipmentState> => ({
   snapshots: [
     {
       source: "ship24",
       trackingNumber: "X1",
       found: true,
       fetchedAt: "2026-09-25T00:00:00Z",
-      events: [{ label, at: "2026-09-24T19:01:00Z" }],
+      events: [{ label, at: "2026-09-24T19:01:00Z", ...(location && { location }) }],
       relatedNumbers: [],
     },
   ],
@@ -35,7 +35,7 @@ const tracked = (label: string): Partial<ShipmentState> => ({
 
 describe("merchantFacts", () => {
   it("croise le suivi et l'email marchand sans numéro reçu la veille", () => {
-    const s = shipment(tracked("FNAC LOGISTIQUE, Shipment in preparation to be shipped"));
+    const s = shipment(tracked("Shipment in preparation to be shipped", "FNAC LOGISTIQUE"));
     expect(
       fuseMerchant(merchantFacts(s, [orphan("2026-09-23", "fnac.com", "Fnac")])),
     ).toMatchObject({
@@ -107,5 +107,47 @@ describe("placeFacts", () => {
       name: "EXPRESS MARKET",
       address: "125 COURS LIEUTAUD 13006 Marseille",
     });
+  });
+});
+
+describe("placeFacts — lieu écrit dans le libellé du suivi", () => {
+  it("retient le relais de mise à disposition, pas l'agence ni un événement sans lieu", () => {
+    const events = [
+      {
+        label: "Recipient informed by SMS or email",
+        at: "2026-09-25T12:52:00",
+        location: "MARSEILLE - FR - SHOP N  FOOD",
+      },
+      {
+        label: "Colis mis à disposition au point de retrait",
+        code: "delivery_available_for_pickup",
+        at: "2026-09-25T11:50:00+02:00",
+      },
+      {
+        label: "Available at retrieval point",
+        code: "delivery_available_for_pickup",
+        at: "2026-09-25T11:50:00",
+        location: "MARSEILLE - FR - SHOP N  FOOD",
+      },
+      {
+        label: "Shipment left at receiver's disposal at local post office or Parcel shop",
+        code: "delivery_available_for_pickup",
+        at: "2026-09-25T11:44:00",
+        location: "MARSEILLE CENTRE CHRONOPOST",
+      },
+    ];
+    const s = shipment({
+      snapshots: [
+        {
+          source: "ship24",
+          trackingNumber: "X1",
+          found: true,
+          fetchedAt: "2026-09-25T13:00:00Z",
+          events,
+          relatedNumbers: [],
+        },
+      ],
+    });
+    expect(fusePlace(placeFacts(s))?.value).toEqual({ name: "SHOP N FOOD", locality: "MARSEILLE" });
   });
 });

@@ -1,5 +1,6 @@
 /** Agrégateur Ship24 (plan gratuit : 10 colis/mois + 100 le 1er mois). Chaque nouveau numéro consomme 1 quota. */
 
+import { normalizeEvent } from "@coly/core";
 import type { TrackingEvent, TrackingSnapshot } from "./types.ts";
 
 interface Ship24Response {
@@ -50,7 +51,7 @@ export async function trackShip24(key: string, trackingNumber: string): Promise<
     if (e.occurrenceDatetime) event.at = e.occurrenceDatetime;
     if (e.location) event.location = e.location;
     if (e.courierCode) event.courier = e.courierCode;
-    return event;
+    return normalizeEvent(event);
   });
   const couriers = [...new Set(events.map((e) => e.courier).filter(Boolean))];
   const snapshot: TrackingSnapshot = {

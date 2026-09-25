@@ -5,6 +5,8 @@ import {
   isMeaningfulPlace,
   isPresumedDone,
   mergeTimeline,
+  normalizeEvent,
+  parseEventPlace,
 } from "./tracking-info.ts";
 
 const now = new Date("2026-09-23T12:00:00Z");
@@ -51,5 +53,43 @@ describe("ancienneté", () => {
     expect(isPresumedDone("2026-07-01", false, now)).toBe(true);
     expect(isPresumedDone("2026-07-01", true, now)).toBe(false);
     expect(isPresumedDone("2026-09-10", false, now)).toBe(false);
+  });
+});
+
+describe("normalizeEvent", () => {
+  it("sort le lieu écrit en tête du libellé (« LIEU, message »)", () => {
+    expect(
+      normalizeEvent({ label: "MARSEILLE - FR - SHOP N  FOOD, Available at retrieval point" }),
+    ).toEqual({ label: "Available at retrieval point", location: "MARSEILLE - FR - SHOP N  FOOD" });
+    expect(
+      normalizeEvent({ label: "FNAC LOGISTIQUE, Shipment in preparation to be shipped" }),
+    ).toEqual({
+      label: "Shipment in preparation to be shipped",
+      location: "FNAC LOGISTIQUE",
+    });
+  });
+
+  it("ne touche ni une phrase ordinaire, ni un événement qui a déjà un lieu, et reste stable", () => {
+    const sentence = { label: "Votre colis est livré, merci de votre confiance" };
+    expect(normalizeEvent(sentence)).toEqual(sentence);
+    const located = { label: "HUB PARIS, Tri effectué", location: "PARIS" };
+    expect(normalizeEvent(located)).toEqual(located);
+    const once = normalizeEvent({
+      label: "MARSEILLE CENTRE CHRONOPOST, Sorted at delivery location",
+    });
+    expect(normalizeEvent(once)).toEqual(once);
+  });
+});
+
+describe("parseEventPlace", () => {
+  it("décompose « VILLE - PAYS - NOM » et nettoie les espaces", () => {
+    expect(parseEventPlace("MARSEILLE - FR - SHOP N  FOOD")).toEqual({
+      name: "SHOP N FOOD",
+      locality: "MARSEILLE",
+    });
+  });
+
+  it("garde un nom simple tel quel", () => {
+    expect(parseEventPlace("EXPRESS MARKET")).toEqual({ name: "EXPRESS MARKET" });
   });
 });

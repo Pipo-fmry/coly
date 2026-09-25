@@ -123,16 +123,28 @@ describe("fusePlace", () => {
 });
 
 describe("shipperFromEvent", () => {
-  it("lit l'expéditeur nommé en tête d'un événement de préparation", () => {
-    expect(shipperFromEvent("FNAC LOGISTIQUE, Shipment in preparation to be shipped")).toBe(
-      "FNAC LOGISTIQUE",
-    );
-    expect(shipperFromEvent("Expéditeur : Maison du Monde")).toBe("Maison du Monde");
+  it("lit l'expéditeur : lieu d'un événement de préparation, ou nommé dans le libellé", () => {
+    expect(
+      shipperFromEvent({
+        label: "Shipment in preparation to be shipped",
+        location: "FNAC LOGISTIQUE",
+      }),
+    ).toBe("FNAC LOGISTIQUE");
+    expect(shipperFromEvent({ label: "Expéditeur : Maison du Monde" })).toBe("Maison du Monde");
   });
 
-  it("ne prend pas une phrase générique pour un nom", () => {
-    expect(shipperFromEvent("Colis en cours de préparation chez l'expéditeur")).toBeUndefined();
-    expect(shipperFromEvent("MARSEILLE CENTRE, Colis livré")).toBeUndefined();
-    expect(shipperFromEvent("WEB SERVICES, Shipment in preparation to be shipped")).toBeUndefined();
+  it("ne prend pas une phrase générique ni un lieu de transit pour un nom", () => {
+    expect(
+      shipperFromEvent({ label: "Colis en cours de préparation chez l'expéditeur" }),
+    ).toBeUndefined();
+    expect(
+      shipperFromEvent({ label: "Colis livré", location: "MARSEILLE CENTRE" }),
+    ).toBeUndefined();
+    expect(
+      shipperFromEvent({
+        label: "Shipment in preparation to be shipped",
+        location: "WEB SERVICES",
+      }),
+    ).toBeUndefined();
   });
 });

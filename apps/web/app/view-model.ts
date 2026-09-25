@@ -63,6 +63,13 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
+/** Adresse du lieu, ou à défaut sa ville : de quoi le situer et le placer sur une carte. */
+export const placeLine = (s: ShipmentState) => s.placeAddress ?? s.placeLocality;
+
+/** Recherche carte / itinéraire d'un lieu. */
+export const placeQuery = (s: ShipmentState) =>
+  [s.placeName, placeLine(s)].filter(Boolean).join(" ");
+
 /** En route : ni au point de retrait, ni terminé. */
 export const isOnTheWay = (s: ShipmentState) =>
   s.status !== "available_for_pickup" && !isTerminal(s.status);
@@ -75,7 +82,7 @@ export function destination(
   const on = s.carrierEmails.findLast((e) => e.availableOn)?.availableOn;
   return {
     name: s.placeName,
-    ...(s.placeAddress && { address: s.placeAddress }),
+    ...(placeLine(s) && { address: placeLine(s) }),
     ...(on && { on }),
   };
 }

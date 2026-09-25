@@ -23,6 +23,7 @@ import {
   isPresumedDone,
   isTerminal,
   type MailDecision,
+  normalizeEvent,
   parseCarrierEmail,
   pickupImages,
   type Resolved,
@@ -98,6 +99,7 @@ export interface ShipmentState {
   pickup?: PickupProof;
   placeName?: string;
   placeAddress?: string;
+  placeLocality?: string;
   trackingUrl?: string;
   lastUpdate?: string;
 }
@@ -148,8 +150,13 @@ function refreshDerived(row: ShipmentState): void {
   // Lieu : moteur de fusion (ADR 0016), l'email transporteur prime sur les API de suivi.
   const place = fusePlace(placeFacts(row));
   if (place) {
-    row.placeName = place.value.name;
-    if (place.value.address) row.placeAddress = place.value.address;
+    // Adresse et ville suivent le lieu retenu : jamais celles d'un lieu précédent.
+    const { name, address, locality } = place.value;
+    row.placeName = name;
+    if (address) row.placeAddress = address;
+    else delete row.placeAddress;
+    if (locality) row.placeLocality = locality;
+    else delete row.placeLocality;
   }
   const lastUpdate = [
     ...row.snapshots.flatMap((s) => s.events.map((e) => e.at)),
@@ -223,7 +230,14 @@ export async function findShipment(id: string): Promise<ShipmentState | undefine
 export async function readState(): Promise<ColyState | undefined> {
   try {
     const state = JSON.parse(await readFile(STATE_FILE, "utf8")) as ColyState;
-    return state.version === STATE_VERSION ? state : undefined;
+    if (state.version !== STATE_VERSION) return undefined;
+    // Snapshots stockés avant la normalisation des événements : même traitement qu'à la lecture de la source.
+    for (const shipment of state.shipments)
+      for (const snapshot of shipment.snapshots) {
+        snapshot.events = snapshot.events.map(normalizeEvent);
+        if (snapshot.events[0]) snapshot.lastEvent = snapshot.events[0];
+      }
+    return state;
   } catch {
     return undefined;
   }

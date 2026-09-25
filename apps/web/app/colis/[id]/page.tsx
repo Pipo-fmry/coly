@@ -11,6 +11,8 @@ import {
   gmailLink,
   isOnTheWay,
   pickupQrEmail,
+  placeLine,
+  placeQuery,
   STATUS_LABEL,
   timeline,
 } from "../../view-model";
@@ -31,7 +33,8 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const pickup = shipment.pickup;
   const proofEmail = pickup?.messageId ?? pickupQrEmail(shipment)?.messageId;
   const related = [...new Set(shipment.snapshots.flatMap((s) => s.relatedNumbers))];
-  const placeQuery = [shipment.placeName, shipment.placeAddress].filter(Boolean).join(" ");
+  const query = placeQuery(shipment);
+  const line = placeLine(shipment);
   // En route : dernière nouvelle puis destination, le trajet complet vient ensuite.
   const onTheWay = isOnTheWay(shipment);
   const latest = events[0];
@@ -86,15 +89,15 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
           <section className="place">
             <div>
               <div className="place-name">{shipment.placeName ?? `Point relais ${carrier}`}</div>
-              {shipment.placeAddress && <div className="place-meta">{shipment.placeAddress}</div>}
+              {line && <div className="place-meta">{line}</div>}
               {arrived && <div className="place-meta">Arrivé {since(arrived)}</div>}
             </div>
-            {placeQuery && (
+            {query && (
               <>
-                <PlaceMap query={placeQuery} />
+                <PlaceMap query={query} />
                 <a
                   className="button-on-dark"
-                  href={`https://maps.apple.com/?q=${encodeURIComponent(placeQuery)}`}
+                  href={`https://maps.apple.com/?q=${encodeURIComponent(query)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

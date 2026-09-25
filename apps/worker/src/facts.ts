@@ -11,6 +11,7 @@ import {
   type MerchantFact,
   merchantNameFromDomain,
   type PlaceFact,
+  parseEventPlace,
   type SourceKind,
   type StatusFact,
   shipperFromEvent,
@@ -64,7 +65,7 @@ export function merchantFacts(row: ShipmentState, orphans: readonly Sighting[]):
     });
   for (const snapshot of row.snapshots)
     for (const event of snapshot.events) {
-      const shipper = shipperFromEvent(event.label);
+      const shipper = shipperFromEvent(event);
       if (shipper)
         facts.push({
           field: "merchant",
@@ -141,24 +142,24 @@ export function placeFacts(row: ShipmentState): PlaceFact[] {
     if (snapshot.removalPoint?.name)
       facts.push({
         field: "place",
-        value: { name: snapshot.removalPoint.name },
+        value: parseEventPlace(snapshot.removalPoint.name),
         kind,
         confidence: "certain",
         sourceRef,
         observedAt: snapshot.fetchedAt,
       });
-    // Lieu d'un événement de mise en relais : moins sûr qu'un point de retrait déclaré.
-    const pickup = snapshot.events.find((e) => PICKUP_EVENT.test(e.code ?? e.label));
-    // Le moteur écarte les lieux inexploitables (ADR 0016).
-    if (pickup?.location)
-      facts.push({
-        field: "place",
-        value: { name: pickup.location },
-        kind,
-        confidence: "probable",
-        sourceRef,
-        ...(pickup.at && { observedAt: pickup.at }),
-      });
+    // Lieux des événements de mise en relais : moins sûrs qu'un point de retrait déclaré. Tous, car une source
+    // peut en donner un sans lieu ; le moteur garde le plus récent et écarte les lieux inexploitables (ADR 0016).
+    for (const e of snapshot.events)
+      if (e.location && PICKUP_EVENT.test(e.code ?? e.label))
+        facts.push({
+          field: "place",
+          value: parseEventPlace(e.location),
+          kind,
+          confidence: "probable",
+          sourceRef,
+          ...(e.at && { observedAt: e.at }),
+        });
   }
   return facts;
 }

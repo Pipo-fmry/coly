@@ -36,6 +36,8 @@ interface FactBase<F extends string, V> {
 export interface Place {
   name: string;
   address?: string;
+  /** Ville, quand la source ne donne pas l'adresse : suffit à placer le lieu sur une carte. */
+  locality?: string;
 }
 
 export type MerchantFact = FactBase<"merchant", string>;
@@ -162,13 +164,18 @@ export function fusePlace(facts: readonly PlaceFact[]): Resolved<Place> | undefi
   };
 }
 
-const NAMED_PREPARATION =
-  /^([^,]{3,40}),\s*(?:shipment|parcel|colis|envoi)\b[^,]{0,40}\bpr[ée]par/i;
+const PREPARATION = /pr[ée]par/i;
 const NAMED_SHIPPER = /\bexp[ée]diteur\s*:\s*([^,.;]{3,40})/i;
 
-/** Expéditeur nommé dans un événement de suivi (« FNAC LOGISTIQUE, Shipment in preparation… »). */
-export function shipperFromEvent(label: string): string | undefined {
-  const name = (NAMED_PREPARATION.exec(label)?.[1] ?? NAMED_SHIPPER.exec(label)?.[1])?.trim();
+/**
+ * Expéditeur d'après un événement de suivi (déjà normalisé) : le lieu d'un événement de préparation
+ * (« FNAC LOGISTIQUE ») ou un nom donné explicitement (« Expéditeur : X »).
+ */
+export function shipperFromEvent(event: { label: string; location?: string }): string | undefined {
+  const name = (
+    NAMED_SHIPPER.exec(event.label)?.[1] ??
+    (PREPARATION.test(event.label) ? event.location : undefined)
+  )?.trim();
   // Un nom sans mot distinctif (« WEB SERVICES ») désigne un service logistique, pas un marchand.
   return name && words(name).length > 0 ? name : undefined;
 }
