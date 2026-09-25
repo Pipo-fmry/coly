@@ -3,6 +3,7 @@
  * Fonction pure : état + vérité de référence + heure courante → indicateurs, par transporteur et au global.
  */
 
+import { shipmentMerchant } from "./facts.ts";
 import type { GroundTruth } from "./ground-truth.ts";
 import type { ColyState, ShipmentState } from "./sync.ts";
 
@@ -13,6 +14,8 @@ export interface Ratio {
 
 export interface CoverageRow {
   active: number;
+  /** Marchand trouvé par le moteur de fusion (certain ou probable). */
+  merchant: Ratio;
   statusKnown: Ratio;
   /** Seulement sur les colis vérifiés par l'utilisateur. */
   statusCorrect: Ratio;
@@ -51,7 +54,12 @@ function median(values: number[]): number | null {
     : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 }
 
-function row(shipments: readonly ShipmentState[], truth: GroundTruth, now: Date): CoverageRow {
+function row(
+  shipments: readonly ShipmentState[],
+  truth: GroundTruth,
+  now: Date,
+  state: ColyState,
+): CoverageRow {
   const verified = shipments.filter((s) => truth[s.id]);
   const pickups = shipments.filter((s) => s.status === "available_for_pickup");
   const freshness = shipments
@@ -60,6 +68,7 @@ function row(shipments: readonly ShipmentState[], truth: GroundTruth, now: Date)
 
   return {
     active: shipments.length,
+    merchant: ratio(shipments, (s: ShipmentState) => shipmentMerchant(s, state) !== undefined),
     statusKnown: ratio(shipments, (s: ShipmentState) => s.status !== undefined),
     statusCorrect: ratio(verified, (s: ShipmentState) => truth[s.id]?.status === s.status),
     medianFreshnessHours: median(freshness),
@@ -83,10 +92,11 @@ export function computeCoverage(state: ColyState, truth: GroundTruth, now: Date)
       active.filter((s) => s.candidate.carrier === carrier),
       truth,
       now,
+      state,
     );
   return {
     generatedAt: now.toISOString(),
-    global: row(active, truth, now),
+    global: row(active, truth, now, state),
     byCarrier,
     presumedDone: state.shipments.length - active.length,
     carrierEmailsNotUnderstood: state.counts.carrierEmailsNotUnderstood ?? {},

@@ -9,6 +9,7 @@ Sur les **colis actifs** (non présumés terminés), par transporteur et au glob
 
 | Indicateur | Définition |
 |---|---|
+| Marchand | % de colis avec un marchand (certain ou probable), toutes sources fusionnées |
 | Statut connu | % de colis avec un statut dérivé |
 | **Statut juste** | % de statuts égaux à la vérité de référence (colis vérifiés par l'utilisateur) |
 | Fraîcheur | âge médian de la dernière information transporteur |
@@ -23,7 +24,7 @@ Sur les **colis actifs** (non présumés terminés), par transporteur et au glob
 | # | Étape | Sortie | Statut |
 |---|---|---|---|
 | 1 | Rapport de couverture + vérité de référence | `pnpm coverage`, boutons « statut juste / faux » dans l'app | fait |
-| 2 | Faits typés + moteur de fusion ; sources actuelles migrées | ADR 0016 appliqué | à faire |
+| 2 | Faits typés + moteur de fusion ; sources actuelles migrées | ADR 0016 appliqué | en cours : marchand et lieu faits, statut à migrer |
 | 3 | Comparatif agrégateurs (Ship24, 17TRACK) + API officielle GLS | tableau par transporteur, choix argumenté | à faire |
 | 4 | Extraction générique des emails (standards puis IA) + corpus de test en CI | ADR 0017 appliqué, non-régression en CI | à faire |
 | 5 | Multi-utilisateur pour 5 à 10 proches | comptes, données séparées, consentement | à faire |

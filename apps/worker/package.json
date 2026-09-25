@@ -15,6 +15,7 @@
     "./sync": "./src/sync.ts",
     "./oauth": "./src/gmail/oauth.ts",
     "./config": "./src/config.ts",
-    "./ground-truth": "./src/ground-truth.ts"
+    "./ground-truth": "./src/ground-truth.ts",
+    "./facts": "./src/facts.ts"
   }
 }

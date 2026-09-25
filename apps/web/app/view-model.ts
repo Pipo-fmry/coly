@@ -5,11 +5,11 @@ import {
   type HomeShipment,
   type HomeView,
   isMeaningfulPlace,
-  merchantSender,
   mergeTimeline,
   type SourcedEvent,
   type UserStatus,
 } from "@coly/core";
+import { shipmentMerchant } from "@coly/worker/facts";
 import type { ColyState, ShipmentState } from "@coly/worker/sync";
 
 export const CARRIERS: Record<string, string> = {
@@ -47,13 +47,6 @@ export const STATUS_LABEL: Record<UserStatus, { label: string; tone: string }> =
   problem: { label: "Problème", tone: "problem" },
 };
 
-/** « notification.undiz.com » → « Undiz ». */
-export function merchantName(domain: string): string {
-  const parts = domain.split(".");
-  const name = parts.length >= 2 ? parts[parts.length - 2] : domain;
-  return name ? name.charAt(0).toUpperCase() + name.slice(1) : domain;
-}
-
 export const carrierName = (s: ShipmentState) =>
   CARRIERS[s.candidate.carrier] ?? s.candidate.carrier;
 
@@ -72,19 +65,9 @@ export function availableSince(s: ShipmentState): string | undefined {
     .sort()[0];
 }
 
-/**
- * Nom du marchand : celui donné par le transporteur s'il existe, sinon le premier expéditeur qui n'est pas un
- * transporteur (son nom affiché, sinon son domaine). Un colis dont seul le transporteur a écrit n'a pas de marchand
- * connu : on ne le remplace pas par le nom du transporteur, qui ne dit rien de l'achat.
- */
-export const displayMerchant = (s: ShipmentState) => {
-  const sender = merchantSender(s.sightings);
-  return (
-    s.merchantLabel ??
-    sender?.senderName ??
-    (sender ? merchantName(sender.senderDomain) : "Marchand inconnu")
-  );
-};
+/** Marchand affiché : fusion de toutes les sources (ADR 0016). Jamais remplacé par le nom du transporteur. */
+export const displayMerchant = (s: ShipmentState, state: ColyState) =>
+  shipmentMerchant(s, state)?.value ?? "Marchand inconnu";
 
 /** Lieu où le colis va arriver, tant qu'il est en route : relais annoncé par email, sinon celui des sources. */
 export function destination(
@@ -140,7 +123,7 @@ export function toHomeView(state: ColyState, now: Date): HomeView & { archived: 
   const shipments: HomeShipment[] = active.map((s) => {
     const home: HomeShipment = {
       id: s.id,
-      merchant: displayMerchant(s),
+      merchant: displayMerchant(s, state),
       carrier: carrierName(s),
       status: s.status,
     };

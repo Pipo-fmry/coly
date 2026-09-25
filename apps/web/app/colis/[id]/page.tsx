@@ -1,3 +1,4 @@
+import { shipmentMerchant } from "@coly/worker/facts";
 import { readState } from "@coly/worker/sync";
 import { notFound } from "next/navigation";
 import { BackLink } from "../../back-link";
@@ -8,7 +9,6 @@ import {
   carrierName,
   DONE,
   destination,
-  displayMerchant,
   estimatedDelivery,
   gmailLink,
   pickupQrEmail,
@@ -23,7 +23,8 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
   const { id } = await params;
   const state = await readState();
   const shipment = state?.shipments.find((s) => s.id === decodeURIComponent(id));
-  if (!shipment) notFound();
+  if (!state || !shipment) notFound();
+  const merchant = shipmentMerchant(shipment, state);
 
   const status = shipment.status ? STATUS_LABEL[shipment.status] : undefined;
   const carrier = carrierName(shipment);
@@ -48,7 +49,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         <span className={`pill pill-${status?.tone ?? "done"}`}>
           {status?.label ?? "Statut inconnu"}
         </span>
-        <h1 className="title">{displayMerchant(shipment)}</h1>
+        <h1 className="title">{merchant?.value ?? "Marchand inconnu"}</h1>
         <p className="meta">
           {carrier} · <code>{shipment.id}</code>
         </p>
@@ -172,14 +173,23 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
         )}
       </section>
 
-      {related.length > 0 && (
-        <section className="list detail-facts">
+      {/* D'où vient chaque information : le marchand peut être déduit (ADR 0016). */}
+      <section className="list detail-facts">
+        <div className="fact">
+          <span className="meta">Marchand</span>
+          <span>
+            {merchant
+              ? `${merchant.value}${merchant.confidence === "probable" ? " (probable)" : ""} · ${merchant.sources.join(", ")}`
+              : "inconnu"}
+          </span>
+        </div>
+        {related.length > 0 && (
           <div className="fact">
             <span className="meta">Numéros liés</span>
             <span>{related.join(", ")}</span>
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </main>
   );
 }

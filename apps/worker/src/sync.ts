@@ -20,7 +20,7 @@ import {
   findPickupCode,
   fromLaPosteCode,
   fromShip24Milestone,
-  isMeaningfulPlace,
+  fusePlace,
   isPresumedDone,
   type MailDecision,
   parseCarrierEmail,
@@ -32,6 +32,7 @@ import {
   type UserStatus,
 } from "@coly/core";
 import { config } from "./config.ts";
+import { placeFacts } from "./facts.ts";
 import {
   buildQuery,
   downloadImage,
@@ -151,18 +152,6 @@ function observations(snapshots: readonly TrackingSnapshot[]): StatusObservation
   });
 }
 
-function placeName(snapshots: readonly TrackingSnapshot[]): string | undefined {
-  for (const s of snapshots)
-    if (isMeaningfulPlace(s.removalPoint?.name)) return s.removalPoint?.name;
-  for (const s of snapshots) {
-    const pickup = s.events.find((e) =>
-      /pickup|relais|retrait|parcelshop|point/i.test(e.code ?? e.label),
-    );
-    if (isMeaningfulPlace(pickup?.location)) return pickup?.location;
-  }
-  return undefined;
-}
-
 function emailObservations(row: ShipmentState): StatusObservation[] {
   return row.carrierEmails.map((e) => ({ source: "email", status: e.kind, at: e.receivedAt }));
 }
@@ -170,14 +159,11 @@ function emailObservations(row: ShipmentState): StatusObservation[] {
 /** Statut, lieu et date de dernière info, recalculés depuis toutes les sources (ADR 0005, 0015). */
 function refreshDerived(row: ShipmentState): void {
   row.status = deriveStatus([...observations(row.snapshots), ...emailObservations(row)]);
-  // L'email transporteur donne le relais exact (nom + adresse) : il prime sur l'agrégateur.
-  const emailPlace = row.carrierEmails.findLast((e) => e.pickupPoint)?.pickupPoint;
-  if (emailPlace) {
-    row.placeName = emailPlace.name;
-    if (emailPlace.address) row.placeAddress = emailPlace.address;
-  } else {
-    const place = placeName(row.snapshots);
-    if (place) row.placeName = place;
+  // Lieu : moteur de fusion (ADR 0016), l'email transporteur prime sur les API de suivi.
+  const place = fusePlace(placeFacts(row));
+  if (place) {
+    row.placeName = place.value.name;
+    if (place.value.address) row.placeAddress = place.value.address;
   }
   const lastUpdate = [
     ...row.snapshots.flatMap((s) => s.events.map((e) => e.at)),

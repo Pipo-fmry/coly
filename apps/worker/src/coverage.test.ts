@@ -37,6 +37,7 @@ describe("computeCoverage", () => {
         carrier: "gls",
         status: "available_for_pickup",
         placeName: "RELAIS",
+        merchantLabel: "Caats",
         placeAddress: "1 RUE X 13006 Marseille",
         lastUpdate: "2026-09-23T10:00:00Z",
         carrierEmails: [
@@ -74,6 +75,10 @@ describe("computeCoverage", () => {
   it("exclut les colis présumés terminés et les compte à part", () => {
     expect(report.global.active).toBe(4);
     expect(report.presumedDone).toBe(1);
+  });
+
+  it("mesure le marchand connu, toutes sources fusionnées", () => {
+    expect(report.global.merchant).toEqual({ hits: 1, total: 4 });
   });
 
   it("mesure statut connu et statut juste (sur les seuls colis vérifiés)", () => {
