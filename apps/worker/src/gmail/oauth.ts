@@ -6,6 +6,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+import { normalizeEmail } from "../email.ts";
 
 const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"].join(" ");
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -16,7 +17,11 @@ const ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
 export const CLI_REDIRECT_URI = "http://127.0.0.1:8765";
 
 /** Levée quand l'autorisation Gmail est absente ou expirée : l'utilisateur doit se reconnecter avec Google. */
-export class ConsentRequiredError extends Error {}
+export class ConsentRequiredError extends Error {
+  constructor(message = "Autorisation Gmail absente ou expirée : reconnecte-toi avec Google.") {
+    super(message);
+  }
+}
 
 export interface Credentials {
   clientId: string;
@@ -76,11 +81,11 @@ export function identityFromIdToken(idToken: string, clientId: string): GoogleId
     throw new Error("id_token Google inattendu (émetteur ou audience).");
   if (!claims.sub || !claims.email || claims.email_verified !== true)
     throw new Error("Google n'a pas fourni d'adresse email vérifiée.");
-  return { id: claims.sub, email: claims.email.toLowerCase() };
+  return { id: claims.sub, email: normalizeEmail(claims.email) };
 }
 
 /** Secrets d'un flux d'autorisation : vérificateur PKCE, son empreinte, et l'état anti-CSRF. */
-export function newPkce(): { verifier: string; challenge: string; state: string } {
+export function newAuthSecrets(): { verifier: string; challenge: string; state: string } {
   const verifier = randomBytes(32).toString("base64url");
   return {
     verifier,
@@ -146,7 +151,7 @@ export async function refreshAccessToken(
   } catch (error) {
     if (!(error instanceof OAuthError && error.code === "invalid_grant")) throw error;
   }
-  throw new ConsentRequiredError("Autorisation Gmail expirée : reconnecte-toi avec Google.");
+  throw new ConsentRequiredError();
 }
 
 /** Révocation côté Google (déconnexion de Gmail). Échec silencieux : le token est de toute façon supprimé chez nous. */
@@ -161,7 +166,7 @@ export async function authorizeOnDesktop(
   creds: Credentials,
   onUrl: (url: string) => void,
 ): Promise<GoogleGrant> {
-  const { verifier, challenge, state } = newPkce();
+  const { verifier, challenge, state } = newAuthSecrets();
   const { hostname, port } = new URL(CLI_REDIRECT_URI);
 
   const code = await new Promise<string>((resolve, reject) => {

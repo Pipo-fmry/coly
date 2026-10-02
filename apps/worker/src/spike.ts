@@ -8,11 +8,11 @@
 import { execFile } from "node:child_process";
 import { parseArgs } from "node:util";
 import { config, MissingConfigError } from "./config.ts";
+import { normalizeEmail } from "./email.ts";
 import { authorizeOnDesktop } from "./gmail/oauth.ts";
 import { runSync, SYNC_WINDOW_DAYS } from "./sync.ts";
 import type { TrackingSnapshot } from "./tracking/types.ts";
 import {
-  findUserByEmail,
   listUsers,
   readRefreshToken,
   saveGrant,
@@ -41,26 +41,27 @@ function describe(snapshot: TrackingSnapshot): string {
 }
 
 /** Compte à synchroniser : celui demandé, sinon le seul connu ; consentement Google si token absent. */
-async function selectUser(email: string | undefined): Promise<UserProfile> {
+async function selectUser(requested: string | undefined): Promise<UserProfile> {
   const known = await listUsers();
-  let user = email ? await findUserByEmail(email) : known.length === 1 ? known[0] : undefined;
-  if (!email && known.length > 1)
+  if (!requested && known.length > 1)
     throw new Error(
       `Plusieurs comptes : précise --user=… (${known.map((u) => u.email).join(", ")})`,
     );
-  if (user && (await readRefreshToken(user.id, config.encryptionKey()))) return user;
+  const email = requested && normalizeEmail(requested);
+  const user = email ? known.find((u) => u.email === email) : known[0];
+  const key = config.encryptionKey();
+  if (user && (await readRefreshToken(user.id, key))) return user;
 
   const grant = await authorizeOnDesktop(config.google(), (url) => {
     print("Autorise Coly à lire Gmail (lecture seule) dans le navigateur qui s'ouvre.");
     print(`Si rien ne s'ouvre : ${url}`);
     execFile("open", [url], () => undefined);
   });
-  if (email && grant.identity.email !== email.toLowerCase())
+  if (email && grant.identity.email !== email)
     throw new Error(
       `Compte Google ${grant.identity.email} au lieu de ${email} : rien n'est enregistré.`,
     );
-  user = await saveGrant(grant, config.encryptionKey(), new Date());
-  return user;
+  return saveGrant(grant, key, new Date());
 }
 
 async function main(): Promise<void> {

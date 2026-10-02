@@ -1,10 +1,9 @@
 /** Déconnexion de Coly : efface le cookie de session. Les données et l'autorisation Gmail restent. */
 
-import { clearSessionCookie, redirectWith, sameOrigin } from "../../../auth";
+import { clearSessionCookie, redirectTo } from "../../../auth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request): Promise<Response> {
-  if (!sameOrigin(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
-  return redirectWith("/connexion", [clearSessionCookie()], 303);
+export async function POST(): Promise<Response> {
+  return clearSessionCookie(redirectTo("/connexion", 303));
 }

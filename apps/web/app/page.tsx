@@ -1,5 +1,5 @@
 import type { HomeShipment } from "@coly/core";
-import { readState } from "@coly/worker/sync";
+import { type ColyState, readState } from "@coly/worker/sync";
 import Link from "next/link";
 import { AccountMenu } from "./account-menu";
 import { requireSession } from "./auth";
@@ -31,13 +31,19 @@ export default async function Home() {
   const session = await requireSession();
   const state = await readState(session.userId);
 
-  if (!state) {
-    return (
-      <main className="screen">
-        <header className="header">
+  return (
+    <main className="screen">
+      <header className="header">
+        <div>
           <h1 className="title">Colis</h1>
-          <RefreshButton />
-        </header>
+          {state && <p className="meta">Mis à jour {since(state.updatedAt)}</p>}
+        </div>
+        <RefreshButton />
+      </header>
+
+      {state ? (
+        <Shipments state={state} />
+      ) : (
         <section className="empty">
           <h2>Première synchronisation</h2>
           <p>
@@ -45,26 +51,21 @@ export default async function Home() {
             jours, puis seulement les nouveaux. Cela peut prendre une minute.
           </p>
         </section>
-        <AccountMenu email={session.email} />
-      </main>
-    );
-  }
+      )}
 
+      <AccountMenu email={session.email} />
+    </main>
+  );
+}
+
+function Shipments({ state }: { state: ColyState }) {
   const view = toHomeView(state, new Date());
   const { counts } = state;
   const nothingActive =
     view.urgent.length + view.places.length + view.inTransit.length + view.unknown.length === 0;
 
   return (
-    <main className="screen">
-      <header className="header">
-        <div>
-          <h1 className="title">Colis</h1>
-          <p className="meta">Mis à jour {since(state.updatedAt)}</p>
-        </div>
-        <RefreshButton />
-      </header>
-
+    <>
       {nothingActive && (
         <section className="empty">
           <h2>Rien en cours</h2>
@@ -168,8 +169,6 @@ export default async function Home() {
           </p>
         )}
       </section>
-
-      <AccountMenu email={session.email} />
-    </main>
+    </>
   );
 }

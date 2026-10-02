@@ -5,6 +5,7 @@
 
 import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { normalizeEmail } from "./email.ts";
 import type { GoogleGrant } from "./gmail/oauth.ts";
 import { dataPath } from "./paths.ts";
 import { readSecret, writeSecret } from "./secret-store.ts";
@@ -84,6 +85,6 @@ export async function listUsers(): Promise<UserProfile[]> {
 }
 
 export async function findUserByEmail(email: string): Promise<UserProfile | undefined> {
-  const wanted = email.trim().toLowerCase();
+  const wanted = normalizeEmail(email);
   return (await listUsers()).find((p) => p.email === wanted);
 }

@@ -26,8 +26,8 @@ Pour tout couper : `tailscale serve reset`.
 
 ## Voir l'écran sans Gmail
 
-`pnpm web:demo` affiche des colis **fictifs** (`apps/web/demo/users/demo/state.json`) sous une session de démo,
-sans connexion Google. Pratique pour tester le design.
+`pnpm web:demo` copie le compte **fictif** `apps/web/demo/` dans `data/demo/` (ignoré par git) et ouvre la session
+dessus, sans connexion Google. Pratique pour tester le design.
 
 ## Et un ami ?
 

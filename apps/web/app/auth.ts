@@ -1,32 +1,43 @@
 /**
  * Session côté serveur : cookie signé, lu à chaque requête. Toute page ou route qui touche des données
  * passe par `requireSession()` et n'accède qu'au dossier de cet utilisateur (ADR 0016).
+ * La protection CSRF des routes mutantes est dans `proxy.ts`.
  */
 
-import { config } from "@coly/worker/config";
-import { type Session, signSession, verifySession } from "@coly/worker/session";
+import { config, isDemoUser } from "@coly/worker/config";
+import { signSession, verifySession } from "@coly/worker/session";
 import { readProfile } from "@coly/worker/users";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
+
+export interface Session {
+  /** Identifiant Google (`sub`), clé du dossier de données de l'utilisateur. */
+  userId: string;
+  email: string;
+}
 
 export const SESSION_COOKIE = "coly_session";
 export const OAUTH_COOKIE = "coly_oauth";
 const SESSION_TTL_MS = 30 * 86_400_000;
 
-/** Session fictive de `pnpm web:demo` : lecture seule, sans Gmail ni compte. */
-export const isDemo = (session: Session) => session.userId === "demo";
+async function cookieUserId(): Promise<string | undefined> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token ? verifySession(config.sessionSecret(), token, new Date()) : undefined;
+}
 
 /**
- * Session valide = cookie signé **et** compte toujours existant et invité : retirer une adresse de
+ * Session valide = jeton signé **et** compte toujours existant et invité : retirer une adresse de
  * `ALLOWED_EMAILS` ou effacer son compte coupe l'accès sans attendre l'expiration du cookie.
+ * En mode démo, la session est ouverte d'office sur le compte fictif.
  */
 export async function getSession(): Promise<Session | undefined> {
-  const demo = config.demoUser();
-  if (demo) return demo;
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  const session = token ? verifySession(config.sessionSecret(), token, new Date()) : undefined;
-  if (!session || !config.allowedEmails().includes(session.email)) return undefined;
-  return (await readProfile(session.userId)) ? session : undefined;
+  const userId = config.demoUserId() ?? (await cookieUserId());
+  if (!userId) return undefined;
+  const profile = await readProfile(userId);
+  if (!profile) return undefined;
+  if (!isDemoUser(userId) && !config.allowedEmails().includes(profile.email)) return undefined;
+  return { userId, email: profile.email };
 }
 
 export async function requireSession(): Promise<Session> {
@@ -35,36 +46,36 @@ export async function requireSession(): Promise<Session> {
 
 export const callbackUrl = () => new URL("/api/auth/callback", config.appUrl()).toString();
 
-/** En-tête Set-Cookie : HttpOnly, SameSite=Lax, Secure dès que l'app est servie en HTTPS. */
-export function cookieHeader(
-  name: string,
-  value: string,
-  maxAgeSeconds: number,
-  path = "/",
-): string {
-  const secure = config.appUrl().protocol === "https:" ? "; Secure" : "";
-  return `${name}=${value}; Path=${path}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure}`;
+/** Redirection vers un chemin de l'app, résolu sur `APP_URL` (l'URL publique, pas celle vue par le serveur). */
+export const redirectTo = (path: string, status = 302) =>
+  NextResponse.redirect(new URL(path, config.appUrl()), status);
+
+/** Options communes : HttpOnly, SameSite=Lax, Secure dès que l'app est servie en HTTPS. */
+const cookieOptions = (maxAge: number, path = "/") => ({
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: config.appUrl().protocol === "https:",
+  maxAge,
+  path,
+});
+
+export function setOauthCookie(response: NextResponse, value: string): NextResponse {
+  response.cookies.set(OAUTH_COOKIE, value, cookieOptions(600, "/api/auth"));
+  return response;
 }
 
-export const sessionCookie = (session: Session) =>
-  cookieHeader(
-    SESSION_COOKIE,
-    signSession(config.sessionSecret(), session, new Date(), SESSION_TTL_MS),
-    SESSION_TTL_MS / 1000,
-  );
-
-export const clearSessionCookie = () => cookieHeader(SESSION_COOKIE, "", 0);
-
-/** Redirection avec cookies (Response.redirect renvoie des en-têtes figés). */
-export function redirectWith(location: string, setCookies: string[], status = 302): Response {
-  const headers = new Headers({ location });
-  for (const cookie of setCookies) headers.append("set-cookie", cookie);
-  return new Response(null, { status, headers });
+export function clearOauthCookie(response: NextResponse): NextResponse {
+  response.cookies.set(OAUTH_COOKIE, "", cookieOptions(0, "/api/auth"));
+  return response;
 }
 
-/** Refuse une requête mutante venue d'une autre origine (protection CSRF). */
-export function sameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  return URL.canParse(origin) && new URL(origin).host === request.headers.get("host");
+export function setSessionCookie(response: NextResponse, userId: string): NextResponse {
+  const token = signSession(config.sessionSecret(), userId, new Date(), SESSION_TTL_MS);
+  response.cookies.set(SESSION_COOKIE, token, cookieOptions(SESSION_TTL_MS / 1000));
+  return response;
+}
+
+export function clearSessionCookie(response: NextResponse): NextResponse {
+  response.cookies.set(SESSION_COOKIE, "", cookieOptions(0));
+  return response;
 }

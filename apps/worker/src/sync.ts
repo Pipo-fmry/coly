@@ -186,15 +186,36 @@ export async function readState(userId: string): Promise<ColyState | undefined> 
 /** Access token Gmail de l'utilisateur. Sans refresh token stocké : il doit (re)passer par « Se connecter avec Google ». */
 async function gmailAccessToken(userId: string): Promise<string> {
   const refreshToken = await readRefreshToken(userId, config.encryptionKey());
-  if (!refreshToken)
-    throw new ConsentRequiredError("Autorisation Gmail absente : reconnecte-toi avec Google.");
+  if (!refreshToken) throw new ConsentRequiredError();
   return refreshAccessToken(config.google(), refreshToken);
 }
 
+/** Levée quand une synchro de ce même utilisateur est déjà en cours dans ce processus. */
+export class SyncInProgressError extends Error {
+  constructor() {
+    super("Actualisation déjà en cours.");
+  }
+}
+
+const running = new Set<string>();
+
+/** Une synchro à la fois par utilisateur : l'état est relu puis réécrit en entier (verrou de ce processus). */
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
+  if (running.has(options.userId)) throw new SyncInProgressError();
+  running.add(options.userId);
+  try {
+    return await sync(options);
+  } finally {
+    running.delete(options.userId);
+  }
+}
+
+async function sync(options: SyncOptions): Promise<SyncResult> {
   const now = new Date();
-  const previous = options.full ? undefined : await readState(options.userId);
-  const token = await gmailAccessToken(options.userId);
+  const [previous, token] = await Promise.all([
+    options.full ? undefined : readState(options.userId),
+    gmailAccessToken(options.userId),
+  ]);
   const query = buildQuery(
     previous
       ? { days: SYNC_WINDOW_DAYS, since: new Date(previous.syncedUntil) }

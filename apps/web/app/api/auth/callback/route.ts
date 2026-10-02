@@ -9,20 +9,17 @@ import { saveGrant } from "@coly/worker/users";
 import { cookies } from "next/headers";
 import {
   callbackUrl,
+  clearOauthCookie,
   clearSessionCookie,
-  cookieHeader,
   OAUTH_COOKIE,
-  redirectWith,
-  sessionCookie,
+  redirectTo,
+  setSessionCookie,
 } from "../../../auth";
 
 export const dynamic = "force-dynamic";
 
-// Évalués à la requête, pas au chargement du module : la config n'est pas lue pendant `next build`.
-const clearOauthCookie = () => cookieHeader(OAUTH_COOKIE, "", 0, "/api/auth");
 /** Échec : on oublie le flux en cours ; la session existante (ré-autorisation Gmail) reste ouverte. */
-const failed = (reason: string, cookies = [clearOauthCookie()]) =>
-  redirectWith(`/connexion?erreur=${reason}`, cookies);
+const failed = (reason: string) => clearOauthCookie(redirectTo(`/connexion?erreur=${reason}`));
 
 async function oauthCookie(): Promise<{ state: string; verifier: string } | undefined> {
   const [state, verifier] = ((await cookies()).get(OAUTH_COOKIE)?.value ?? "").split(".");
@@ -46,13 +43,10 @@ export async function GET(request: Request): Promise<Response> {
     if (!config.allowedEmails().includes(grant.identity.email)) {
       // Adresse non invitée : rien n'est gardé, le token est rendu à Google, toute session est fermée.
       await revokeToken(grant.refreshToken);
-      return failed("non-invite", [clearOauthCookie(), clearSessionCookie()]);
+      return clearSessionCookie(failed("non-invite"));
     }
     const profile = await saveGrant(grant, config.encryptionKey(), new Date());
-    return redirectWith("/", [
-      sessionCookie({ userId: profile.id, email: profile.email }),
-      clearOauthCookie(),
-    ]);
+    return clearOauthCookie(setSessionCookie(redirectTo("/"), profile.id));
   } catch (error) {
     // Un token obtenu mais non enregistré ne doit pas rester actif chez Google.
     if (grant) await revokeToken(grant.refreshToken);
