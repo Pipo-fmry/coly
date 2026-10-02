@@ -13,11 +13,14 @@ export function RefreshButton() {
     setError(undefined);
     try {
       const response = await fetch("/api/refresh", { method: "POST" });
-      const body = (await response.json()) as { error?: string };
+      const body = (await response.json()) as { error?: string; reconnect?: boolean };
+      // Session ou autorisation Gmail expirée : on repasse par « Se connecter avec Google ».
+      if (response.status === 401)
+        return router.push(body.reconnect ? "/api/auth/google" : "/connexion");
       if (!response.ok) setError(body.error ?? "Actualisation impossible.");
       router.refresh();
     } catch {
-      setError("Serveur injoignable. Le Mac est-il allumé ?");
+      setError("Serveur injoignable.");
     } finally {
       setBusy(false);
     }

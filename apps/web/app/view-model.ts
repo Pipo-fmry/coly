@@ -77,8 +77,9 @@ export const pickupQrEmail = (s: ShipmentState) =>
   s.carrierEmails.findLast((e) => e.hasPickupQrCode);
 
 /** Ouvre l'email d'origine dans Gmail (le QR code y est affiché tel que le transporteur l'a envoyé). */
-export const gmailLink = (messageId: string) =>
-  `https://mail.google.com/mail/u/0/#all/${messageId}`;
+/** Ouvre l'email dans le bon compte Google, même si plusieurs sont connectés dans le navigateur. */
+export const gmailLink = (messageId: string, email: string) =>
+  `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#all/${messageId}`;
 
 export function timeline(s: ShipmentState): SourcedEvent[] {
   const fromEmails: SourcedEvent[] = s.carrierEmails.map((e) => ({

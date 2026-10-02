@@ -378,3 +378,28 @@ code {
   background: var(--brand-pin);
   color: var(--brand-citron);
 }
+
+/* Compte */
+.account {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--brand-pin);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button-danger {
+  color: var(--status-problem-fg);
+}

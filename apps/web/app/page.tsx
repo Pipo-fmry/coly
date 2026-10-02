@@ -1,6 +1,8 @@
 import type { HomeShipment } from "@coly/core";
 import { readState } from "@coly/worker/sync";
 import Link from "next/link";
+import { AccountMenu } from "./account-menu";
+import { requireSession } from "./auth";
 import { formatDate, since } from "./format";
 import { RefreshButton } from "./refresh-button";
 import { STATUS_LABEL, toHomeView } from "./view-model";
@@ -26,19 +28,24 @@ function ShipmentRow({ shipment, detail }: { shipment: HomeShipment; detail?: st
 }
 
 export default async function Home() {
-  const state = await readState();
+  const session = await requireSession();
+  const state = await readState(session.userId);
 
   if (!state) {
     return (
       <main className="screen">
-        <h1 className="title">Colis</h1>
+        <header className="header">
+          <h1 className="title">Colis</h1>
+          <RefreshButton />
+        </header>
         <section className="empty">
           <h2>Première synchronisation</h2>
           <p>
-            Lance <code>pnpm spike</code> sur le Mac pour autoriser Gmail en lecture seule. Ensuite,
-            le bouton Actualiser suffit.
+            Appuie sur Actualiser : Coly lit tes emails de commande et de livraison des 90 derniers
+            jours, puis seulement les nouveaux. Cela peut prendre une minute.
           </p>
         </section>
+        <AccountMenu email={session.email} />
       </main>
     );
   }
@@ -161,6 +168,8 @@ export default async function Home() {
           </p>
         )}
       </section>
+
+      <AccountMenu email={session.email} />
     </main>
   );
 }

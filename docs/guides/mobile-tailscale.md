@@ -26,10 +26,10 @@ Pour tout couper : `tailscale serve reset`.
 
 ## Voir l'écran sans Gmail
 
-`pnpm web:demo` affiche des colis **fictifs** (`apps/web/demo/state.json`). Pratique pour tester le design.
+`pnpm web:demo` affiche des colis **fictifs** (`apps/web/demo/users/demo/state.json`) sous une session de démo,
+sans connexion Google. Pratique pour tester le design.
 
 ## Et un ami ?
 
-Tailscale permet de **partager la machine** avec un autre compte (console → Machines → Share). Mais aujourd'hui
-Coly ne gère qu'un utilisateur : ton ami verrait **tes** colis. À ne faire qu'après l'ajout des comptes
-(voir la discussion multi-utilisateurs dans [ADR 0014](../adr/0014-acces-mobile-prive-tailscale.md)).
+Chaque personne se connecte avec son compte Google et ne voit que ses colis ([ADR 0016](../adr/0016-comptes-google-donnees-par-utilisateur.md)).
+Marche à suivre, y compris l'exposition de l'app : [guide testeurs](testeurs.md).

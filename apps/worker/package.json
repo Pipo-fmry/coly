@@ -13,6 +13,8 @@
   "exports": {
     "./sync": "./src/sync.ts",
     "./oauth": "./src/gmail/oauth.ts",
-    "./config": "./src/config.ts"
+    "./config": "./src/config.ts",
+    "./users": "./src/users.ts",
+    "./session": "./src/session.ts"
   }
 }

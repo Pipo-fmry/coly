@@ -9,7 +9,7 @@ Coly lit tes emails de commande et d'expédition, suit chaque colis même quand 
 - **quoi faire en premier** : « plus qu'un jour pour retirer ton colis Zalando » ;
 - **quand y aller** : « attends jeudi, un 5ᵉ colis arrive au même endroit ».
 
-> Statut : **prototype mono-utilisateur**, en local. Rien n'est encore publié.
+> Statut : **prototype partagé avec quelques testeurs** (connexion Google, données séparées par utilisateur). Rien n'est encore publié.
 
 ## Démarrer
 
@@ -43,4 +43,5 @@ docs/           produit, architecture, décisions (ADR), sécurité, design, rec
 | Investigation initiale | [docs/research/investigation.md](docs/research/investigation.md) |
 | Tester sur sa boîte Gmail | [docs/guides/spike-gmail.md](docs/guides/spike-gmail.md) |
 | Ouvrir Coly sur son iPhone | [docs/guides/mobile-tailscale.md](docs/guides/mobile-tailscale.md) |
+| Faire tester à quelques personnes | [docs/guides/testeurs.md](docs/guides/testeurs.md) |
 | Contribuer | [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md) |

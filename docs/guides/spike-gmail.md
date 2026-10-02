@@ -11,7 +11,9 @@ Durée de mise en place : ~15 min, une seule fois.
 2. **API et services → Bibliothèque** → activer **Gmail API**.
 3. **Écran de consentement OAuth** → type **Externe** → nom « Coly (perso) », ton email → ajouter le scope
    `.../auth/gmail.readonly` → **Utilisateurs de test** : ajouter l'adresse Gmail à lire.
-4. **Identifiants → Créer → ID client OAuth → Application de bureau**. Copier l'ID et le secret.
+4. **Identifiants → Créer → ID client OAuth → Application Web**, avec `http://127.0.0.1:8765` dans les URI de
+   redirection autorisées (la CLI écoute sur ce port). Copier l'ID et le secret. Le même client sert à la webapp
+   ([guide testeurs](testeurs.md)).
 
 Mode « test » : Google invalide l'autorisation au bout de 7 jours ; la commande redemande alors le consentement,
 c'est normal. Usage personnel : pas d'audit CASA (investigation §2.1).
@@ -45,7 +47,8 @@ pnpm spike --full                            # repart de zéro (90 jours)
 pnpm spike --aggregator-limit=30
 ```
 
-Au premier lancement, le navigateur s'ouvre pour autoriser la lecture seule de Gmail.
+Au premier lancement, le navigateur s'ouvre pour autoriser la lecture seule de Gmail : cela crée ton compte dans
+`data/users/<identifiant Google>/`, le même que celui de la webapp. S'il existe plusieurs comptes : `--user=email`.
 
 ## Lire le rapport
 
@@ -53,7 +56,7 @@ Pour chaque numéro : date et expéditeur du premier email, transporteur détect
 (statut de la source, dernier événement, transporteur vu, partenaire / point de retrait, numéros liés).
 En fin de rapport : les emails filtrés **sans** numéro détecté, à regarder pour améliorer la détection.
 
-Le détail est écrit dans `data/state.json` (local, ignoré par git).
+Le détail est écrit dans `data/users/<id>/state.json` (local, ignoré par git).
 
 **Ce qu'on cherche** (à reporter dans `docs/LEARNINGS.md`) :
 - colis ratés par la détection, et pourquoi (numéro dans une image, lien marque blanche…) ;
@@ -63,5 +66,5 @@ Le détail est écrit dans `data/state.json` (local, ignoré par git).
 
 ## Révoquer l'accès
 
-[myaccount.google.com/permissions](https://myaccount.google.com/permissions) → « Coly (perso) » → Supprimer l'accès,
-puis supprimer `data/gmail-refresh-token.enc`.
+Depuis la webapp : « Déconnecter Gmail et effacer mes données ». Sinon [myaccount.google.com/permissions](https://myaccount.google.com/permissions)
+→ « Coly (perso) » → Supprimer l'accès, puis supprimer `data/users/<id>/`.

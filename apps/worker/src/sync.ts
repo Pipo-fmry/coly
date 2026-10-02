@@ -1,6 +1,7 @@
 /**
  * Job de synchronisation : Gmail → tri sur en-têtes → détection → tracking → état dérivé.
  * Appelé à la main (CLI `pnpm spike`, bouton « Actualiser ») ; planifiable plus tard (ADR 0007).
+ * Tout est rapporté à un utilisateur : son état, son token Gmail (ADR 0016).
  *
  * - Première synchro : fenêtre de SYNC_WINDOW_DAYS jours. Les colis anciens sans statut sont présumés
  *   terminés et ne consomment pas de quota de tracking.
@@ -30,13 +31,12 @@ import {
 } from "@coly/core";
 import { config } from "./config.ts";
 import { buildQuery, getMessage, getMessageHeader, listMessageIds } from "./gmail/client.ts";
-import { getAccessToken } from "./gmail/oauth.ts";
-import { dataPath } from "./paths.ts";
+import { ConsentRequiredError, refreshAccessToken } from "./gmail/oauth.ts";
 import { trackLaPoste } from "./tracking/laposte.ts";
 import { trackShip24 } from "./tracking/ship24.ts";
 import type { TrackingSnapshot } from "./tracking/types.ts";
+import { readRefreshToken, userStateFile } from "./users.ts";
 
-export const STATE_FILE = dataPath("state.json");
 export const SYNC_WINDOW_DAYS = 90;
 const STATE_VERSION = 3;
 const TERMINAL: ReadonlySet<UserStatus> = new Set(["delivered", "picked_up", "returned"]);
@@ -94,12 +94,12 @@ export interface ColyState {
 }
 
 export interface SyncOptions {
+  /** Utilisateur dont on synchronise la boîte : son état et son token ne sont jamais partagés. */
+  userId: string;
   max: number;
   aggregatorLimit: number;
   /** Ignore l'état existant et repart de SYNC_WINDOW_DAYS jours. */
   full?: boolean;
-  /** Fourni par la CLI pour ouvrir le consentement Google ; absent depuis la webapp. */
-  onConsentUrl?: (url: string) => void;
 }
 
 export interface SyncResult {
@@ -174,19 +174,27 @@ function lastSeen(row: ShipmentState): string {
   );
 }
 
-export async function readState(): Promise<ColyState | undefined> {
+export async function readState(userId: string): Promise<ColyState | undefined> {
   try {
-    const state = JSON.parse(await readFile(STATE_FILE, "utf8")) as ColyState;
+    const state = JSON.parse(await readFile(userStateFile(userId), "utf8")) as ColyState;
     return state.version === STATE_VERSION ? state : undefined;
   } catch {
     return undefined;
   }
 }
 
+/** Access token Gmail de l'utilisateur. Sans refresh token stocké : il doit (re)passer par « Se connecter avec Google ». */
+async function gmailAccessToken(userId: string): Promise<string> {
+  const refreshToken = await readRefreshToken(userId, config.encryptionKey());
+  if (!refreshToken)
+    throw new ConsentRequiredError("Autorisation Gmail absente : reconnecte-toi avec Google.");
+  return refreshAccessToken(config.google(), refreshToken);
+}
+
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
   const now = new Date();
-  const previous = options.full ? undefined : await readState();
-  const token = await getAccessToken(config.google(), config.encryptionKey(), options.onConsentUrl);
+  const previous = options.full ? undefined : await readState(options.userId);
+  const token = await gmailAccessToken(options.userId);
   const query = buildQuery(
     previous
       ? { days: SYNC_WINDOW_DAYS, since: new Date(previous.syncedUntil) }
@@ -315,7 +323,8 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
     shipments: byRecency,
     readWithoutNumber,
   };
-  await mkdir(dirname(STATE_FILE), { recursive: true });
-  await writeFile(STATE_FILE, JSON.stringify(state, null, 2), { mode: 0o600 });
+  const stateFile = userStateFile(options.userId);
+  await mkdir(dirname(stateFile), { recursive: true });
+  await writeFile(stateFile, JSON.stringify(state, null, 2), { mode: 0o600 });
   return { state, newEmails: ids.filter((id) => !knownMessages.has(id)).length, unmatchedSubjects };
 }
