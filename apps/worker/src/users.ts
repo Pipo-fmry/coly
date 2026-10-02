@@ -55,8 +55,16 @@ export async function saveGrant(
   return profile;
 }
 
-export function readRefreshToken(id: string, encryptionKey: Buffer): Promise<string | undefined> {
-  return readSecret(tokenFile(id), encryptionKey);
+/** Token absent, ou illisible (clé changée, fichier abîmé) : dans les deux cas l'utilisateur doit se reconnecter. */
+export async function readRefreshToken(
+  id: string,
+  encryptionKey: Buffer,
+): Promise<string | undefined> {
+  try {
+    return await readSecret(tokenFile(id), encryptionKey);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Suppression totale du compte : token, état, profil. */

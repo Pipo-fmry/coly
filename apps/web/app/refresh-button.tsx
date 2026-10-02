@@ -15,8 +15,12 @@ export function RefreshButton() {
       const response = await fetch("/api/refresh", { method: "POST" });
       const body = (await response.json()) as { error?: string; reconnect?: boolean };
       // Session ou autorisation Gmail expirée : on repasse par « Se connecter avec Google ».
-      if (response.status === 401)
-        return router.push(body.reconnect ? "/api/auth/google" : "/connexion");
+      if (response.status === 401) {
+        // Redirection hors site (Google) : navigation complète, pas le routeur client.
+        if (body.reconnect) window.location.assign("/api/auth/google");
+        else router.push("/connexion");
+        return;
+      }
       if (!response.ok) setError(body.error ?? "Actualisation impossible.");
       router.refresh();
     } catch {

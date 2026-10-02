@@ -37,6 +37,10 @@ describe("users", () => {
     expect(await users.readRefreshToken("1001", key)).toBe("rt-alice-2");
   });
 
+  it("traite un token illisible (autre clé) comme absent : l'utilisateur devra se reconnecter", async () => {
+    expect(await users.readRefreshToken("1001", randomBytes(32))).toBeUndefined();
+  });
+
   it("retrouve un utilisateur par email, sans tenir compte de la casse", async () => {
     expect((await users.findUserByEmail("Bob@Example.com"))?.id).toBe("1002");
     expect(await users.findUserByEmail("inconnu@example.com")).toBeUndefined();

@@ -79,9 +79,14 @@ export function identityFromIdToken(idToken: string, clientId: string): GoogleId
   return { id: claims.sub, email: claims.email.toLowerCase() };
 }
 
-export function newPkce(): { verifier: string; challenge: string } {
+/** Secrets d'un flux d'autorisation : vérificateur PKCE, son empreinte, et l'état anti-CSRF. */
+export function newPkce(): { verifier: string; challenge: string; state: string } {
   const verifier = randomBytes(32).toString("base64url");
-  return { verifier, challenge: createHash("sha256").update(verifier).digest("base64url") };
+  return {
+    verifier,
+    challenge: createHash("sha256").update(verifier).digest("base64url"),
+    state: randomBytes(16).toString("base64url"),
+  };
 }
 
 export function authorizationUrl(
@@ -156,8 +161,7 @@ export async function authorizeOnDesktop(
   creds: Credentials,
   onUrl: (url: string) => void,
 ): Promise<GoogleGrant> {
-  const { verifier, challenge } = newPkce();
-  const state = randomBytes(16).toString("base64url");
+  const { verifier, challenge, state } = newPkce();
   const { hostname, port } = new URL(CLI_REDIRECT_URI);
 
   const code = await new Promise<string>((resolve, reject) => {

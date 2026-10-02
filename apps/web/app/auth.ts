@@ -5,6 +5,7 @@
 
 import { config } from "@coly/worker/config";
 import { type Session, signSession, verifySession } from "@coly/worker/session";
+import { readProfile } from "@coly/worker/users";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -12,11 +13,20 @@ export const SESSION_COOKIE = "coly_session";
 export const OAUTH_COOKIE = "coly_oauth";
 const SESSION_TTL_MS = 30 * 86_400_000;
 
+/** Session fictive de `pnpm web:demo` : lecture seule, sans Gmail ni compte. */
+export const isDemo = (session: Session) => session.userId === "demo";
+
+/**
+ * Session valide = cookie signé **et** compte toujours existant et invité : retirer une adresse de
+ * `ALLOWED_EMAILS` ou effacer son compte coupe l'accès sans attendre l'expiration du cookie.
+ */
 export async function getSession(): Promise<Session | undefined> {
   const demo = config.demoUser();
   if (demo) return demo;
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return token ? verifySession(config.sessionSecret(), token, new Date()) : undefined;
+  const session = token ? verifySession(config.sessionSecret(), token, new Date()) : undefined;
+  if (!session || !config.allowedEmails().includes(session.email)) return undefined;
+  return (await readProfile(session.userId)) ? session : undefined;
 }
 
 export async function requireSession(): Promise<Session> {
@@ -55,5 +65,6 @@ export function redirectWith(location: string, setCookies: string[], status = 30
 /** Refuse une requête mutante venue d'une autre origine (protection CSRF). */
 export function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  return !origin || new URL(origin).host === request.headers.get("host");
+  if (!origin) return true;
+  return URL.canParse(origin) && new URL(origin).host === request.headers.get("host");
 }

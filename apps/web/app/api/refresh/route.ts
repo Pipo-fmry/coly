@@ -3,7 +3,7 @@
 import { MissingConfigError } from "@coly/worker/config";
 import { ConsentRequiredError } from "@coly/worker/oauth";
 import { runSync } from "@coly/worker/sync";
-import { getSession, sameOrigin } from "../../auth";
+import { getSession, isDemo, sameOrigin } from "../../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!sameOrigin(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
   const session = await getSession();
   if (!session) return Response.json({ error: "Connecte-toi d'abord." }, { status: 401 });
+  if (isDemo(session))
+    return Response.json(
+      { error: "Mode démo : colis fictifs, pas de synchronisation." },
+      { status: 503 },
+    );
   const { userId } = session;
   if (running.has(userId))
     return Response.json({ error: "Actualisation déjà en cours." }, { status: 409 });

@@ -148,6 +148,9 @@ vite.config.ts.timestamp-*
 .claude/settings.local.json
 # Données locales du prototype (base, exports Gmail) : jamais dans git
 data/
+# Seules les données de démo (fictives) sont versionnées ; jamais un compte réel
+apps/web/demo/users/*
+!apps/web/demo/users/demo/
 *.sqlite
 *.db
 # Emails réels : seules les fixtures anonymisées sont versionnées
