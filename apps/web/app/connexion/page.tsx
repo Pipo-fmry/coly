@@ -19,7 +19,11 @@ export default async function SignIn({
 }) {
   if (await getSession()) redirect("/");
   const { erreur, info } = await searchParams;
-  const error = erreur ? (ERRORS[erreur] ?? GENERIC_ERROR) : undefined;
+  const error = erreur
+    ? Object.hasOwn(ERRORS, erreur)
+      ? ERRORS[erreur]
+      : GENERIC_ERROR
+    : undefined;
 
   return (
     <main className="screen">
