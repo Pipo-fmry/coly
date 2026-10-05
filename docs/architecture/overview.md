@@ -36,7 +36,7 @@ chaque valeur garde sa **provenance**.
 
 | Étape | Déclenchement | Stockage | Tracking | Hébergement |
 |---|---|---|---|---|
-| **0 — prototype** (maintenant) | bouton « Actualiser » / CLI | SQLite local (`data/`) | appels directs à la demande | Mac local |
+| **0 — prototype** (maintenant) | bouton « Actualiser » / CLI | fichiers JSON par utilisateur (`data/users/<id>/`) | appels directs à la demande | Mac local, quelques testeurs (ADR 0016) |
 | 1 — bêta privée | tâche planifiée (cron) | Postgres | polling adaptatif selon l'état | offre gratuite ou VPS UE |
 | 2 — public | Gmail push (Pub/Sub) + file de jobs (pg-boss) | Postgres | polling + re-vérification sur incohérence | Scaleway (UE) |
 

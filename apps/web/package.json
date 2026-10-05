@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "demo": "COLY_DATA_DIR=demo next dev --hostname 127.0.0.1 --port 3000"
+    "demo": "rm -rf ../../data/demo && mkdir -p ../../data && cp -R demo ../../data/demo && COLY_DATA_DIR=../../data/demo COLY_DEMO=1 next dev --hostname 127.0.0.1 --port 3000"
   },
   "dependencies": {
     "@coly/core": "workspace:*",

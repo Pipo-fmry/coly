@@ -7,7 +7,8 @@ Garder ce fichier **court** : il renvoie vers `docs/`, il ne la duplique pas.
 
 Coly centralise les colis d'un utilisateur à partir de ses emails, **réconcilie** les transporteurs successifs
 (DPD → Chronopost → relais = un seul colis), dérive un **statut fiable** et **regroupe les colis par lieu de retrait**,
-avec l'urgence (date limite) mise en avant. Stade : prototype mono-utilisateur, local. Voir [docs/product/vision.md](docs/product/vision.md).
+avec l'urgence (date limite) mise en avant. Stade : prototype partagé avec quelques testeurs, chacun avec son compte Google
+et sa boîte Gmail ([ADR 0016](docs/adr/0016-comptes-google-donnees-par-utilisateur.md)). Voir [docs/product/vision.md](docs/product/vision.md).
 
 ## Commandes
 
@@ -20,7 +21,7 @@ pnpm test:watch            # tests en continu
 pnpm web                   # webapp (build + serveur) sur 127.0.0.1:3000 — téléphone : docs/guides/mobile-tailscale.md
 pnpm web:dev               # webapp en mode développement (rechargement à chaud)
 pnpm web:demo              # webapp sur des colis fictifs
-pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md)
+pnpm spike                 # lit ta boîte Gmail et compare les sources de tracking (docs/guides/spike-gmail.md) ; --user=email s'il y a plusieurs comptes
 ```
 
 ## Carte du repo
@@ -29,8 +30,8 @@ pnpm spike                 # lit ta boîte Gmail et compare les sources de track
 |---|---|
 | `packages/core` | Domaine **pur** : modèle, réconciliation, statut, urgence, regroupement par lieu. Zéro I/O. |
 | `packages/ui` | Design system : tokens (couleurs, typo, espacements) + composants. |
-| `apps/web` | PWA Next.js : accueil (urgent, lieux, en route), bouton Actualiser. |
-| `apps/worker` | Ingestion Gmail, appels tracking (La Poste, Ship24). Aujourd'hui : la commande `pnpm spike`. |
+| `apps/web` | PWA Next.js : connexion Google, accueil (urgent, lieux, en route), bouton Actualiser. |
+| `apps/worker` | OAuth Google, comptes (`data/users/<id>/`), ingestion Gmail, appels tracking (La Poste, Ship24), CLI `pnpm spike`. |
 | `docs/` | Toute la doc : [index](docs/README.md). |
 
 ## Règles non négociables
@@ -42,6 +43,7 @@ pnpm spike                 # lit ta boîte Gmail et compare les sources de track
 5. **Pas de hex en dur dans l'UI** : on lit `@coly/ui` ; toute nouvelle paire texte/fond s'ajoute à `textPairs` (testée WCAG AA).
 6. **Pas de QR généré par Coly** : on affiche l'image ou le code fournis par le transporteur, tels quels.
 7. **Moins de code** : réutiliser la stdlib, la plateforme et l'existant avant d'écrire ou d'ajouter une dépendance (plugin Ponytail activé).
+8. **Toute donnée est rattachée à un utilisateur** : pages, routes et jobs partent de la session (`requireSession`) et ne touchent que `data/users/<id>/` ([ADR 0016](docs/adr/0016-comptes-google-donnees-par-utilisateur.md)). Aucun fichier de données global.
 
 ## Flux de travail
 

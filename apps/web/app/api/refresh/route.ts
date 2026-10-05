@@ -1,34 +1,36 @@
-/** Relance la synchronisation (bouton « Actualiser »). Jamais de consentement Google ici : il se fait sur le Mac. */
+/** Relance la synchronisation de l'utilisateur connecté (bouton « Actualiser »). */
 
-import { MissingConfigError } from "@coly/worker/config";
+import { isDemoUser, MissingConfigError } from "@coly/worker/config";
 import { ConsentRequiredError } from "@coly/worker/oauth";
-import { runSync } from "@coly/worker/sync";
+import { runSync, SyncInProgressError } from "@coly/worker/sync";
+import { getSession } from "../../auth";
 
 export const dynamic = "force-dynamic";
 
-let running: Promise<unknown> | undefined;
-
-export async function POST(request: Request): Promise<Response> {
-  // Refuse les requêtes d'une autre origine (protection CSRF basique).
-  const origin = request.headers.get("origin");
-  if (origin && new URL(origin).host !== request.headers.get("host")) {
-    return Response.json({ error: "Origine refusée." }, { status: 403 });
-  }
-  if (running) return Response.json({ error: "Actualisation déjà en cours." }, { status: 409 });
+export async function POST(): Promise<Response> {
+  const session = await getSession();
+  if (!session) return Response.json({ error: "Connecte-toi d'abord." }, { status: 401 });
+  if (isDemoUser(session.userId))
+    return Response.json(
+      { error: "Mode démo : colis fictifs, pas de synchronisation." },
+      { status: 503 },
+    );
 
   try {
-    running = runSync({ max: 300, aggregatorLimit: 15 });
-    await running;
+    await runSync({ userId: session.userId, max: 300, aggregatorLimit: 15 });
     return Response.json({ ok: true });
   } catch (error) {
-    const message =
-      error instanceof ConsentRequiredError || error instanceof MissingConfigError
-        ? error.message
-        : "Actualisation impossible, voir le terminal du Mac.";
-    if (!(error instanceof ConsentRequiredError || error instanceof MissingConfigError))
-      process.stderr.write(`Actualisation : ${String(error)}\n`);
-    return Response.json({ error: message }, { status: 503 });
-  } finally {
-    running = undefined;
+    // Autorisation Gmail absente ou expirée (7 jours en mode test Google) : retour à la connexion.
+    if (error instanceof ConsentRequiredError)
+      return Response.json({ error: error.message, reconnect: true }, { status: 401 });
+    if (error instanceof SyncInProgressError)
+      return Response.json({ error: error.message }, { status: 409 });
+    if (error instanceof MissingConfigError)
+      return Response.json({ error: error.message }, { status: 503 });
+    process.stderr.write(`Actualisation : ${String(error)}\n`);
+    return Response.json(
+      { error: "Actualisation impossible, voir le journal du serveur." },
+      { status: 503 },
+    );
   }
 }

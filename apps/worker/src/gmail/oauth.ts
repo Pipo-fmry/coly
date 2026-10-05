@@ -1,129 +1,195 @@
 /**
- * OAuth Google pour application de bureau : redirection loopback + PKCE, scope gmail.readonly uniquement.
- * Le refresh token est chiffré sur disque (data/, ignoré par git).
+ * OAuth Google : un seul consentement donne l'identité (OpenID) et la lecture seule de Gmail (ADR 0016).
+ * Deux entrées : redirection web (webapp, PKCE + state) et redirection loopback (CLI `pnpm spike`).
+ * Aucun token n'est stocké ici : voir `users.ts`.
  */
 
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { dataPath } from "../paths.ts";
-import { readSecret, writeSecret } from "../secret-store.ts";
+import { normalizeEmail } from "../email.ts";
 
-const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"].join(" ");
+const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const TOKEN_FILE = dataPath("gmail-refresh-token.enc");
+const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+const ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
+/** URI de redirection de la CLI, à déclarer telle quelle dans le client OAuth (docs/guides/testeurs.md). */
+export const CLI_REDIRECT_URI = "http://127.0.0.1:8765";
 
-/** Levée quand un consentement Google est nécessaire mais impossible ici (ex. appel depuis la webapp). */
-export class ConsentRequiredError extends Error {}
+/** Levée quand l'autorisation Gmail est absente ou expirée : l'utilisateur doit se reconnecter avec Google. */
+export class ConsentRequiredError extends Error {
+  constructor(message = "Autorisation Gmail absente ou expirée : reconnecte-toi avec Google.") {
+    super(message);
+  }
+}
+
+export interface Credentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+export interface GoogleIdentity {
+  /** Identifiant Google stable (`sub`) : c'est l'identifiant utilisateur de Coly. */
+  id: string;
+  email: string;
+}
+
+export interface GoogleGrant {
+  identity: GoogleIdentity;
+  refreshToken: string;
+}
 
 interface TokenResponse {
   access_token?: string;
   refresh_token?: string;
+  id_token?: string;
   error?: string;
   error_description?: string;
 }
 
-interface Credentials {
-  clientId: string;
-  clientSecret: string;
+class OAuthError extends Error {
+  readonly code: string;
+  constructor(code: string, description: string) {
+    super(`OAuth Google : ${code} ${description}`.trim());
+    this.code = code;
+  }
 }
 
 async function tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
   const response = await fetch(TOKEN_URL, { method: "POST", body: new URLSearchParams(params) });
   const body = (await response.json()) as TokenResponse;
   if (!response.ok)
-    throw new Error(
-      `OAuth Google : ${body.error ?? response.status} ${body.error_description ?? ""}`,
-    );
+    throw new OAuthError(body.error ?? String(response.status), body.error_description ?? "");
   return body;
 }
 
-/** Ouvre le consentement Google, attend le retour sur 127.0.0.1, renvoie le refresh token. */
-async function authorize(creds: Credentials, onUrl: (url: string) => void): Promise<string> {
-  const verifier = randomBytes(32).toString("base64url");
-  const challenge = createHash("sha256").update(verifier).digest("base64url");
-  const state = randomBytes(16).toString("base64url");
-
-  const { code, redirectUri } = await new Promise<{ code: string; redirectUri: string }>(
-    (resolve, reject) => {
-      const server = createServer((req, res) => {
-        const url = new URL(req.url ?? "/", "http://127.0.0.1");
-        const code = url.searchParams.get("code");
-        const ok = code !== null && url.searchParams.get("state") === state;
-        res.writeHead(ok ? 200 : 400, { "content-type": "text/plain; charset=utf-8" });
-        res.end(
-          ok ? "Coly est connecté à Gmail. Tu peux fermer cet onglet." : "Échec de l'autorisation.",
-        );
-        server.close();
-        if (ok) resolve({ code, redirectUri });
-        else
-          reject(
-            new Error(`Autorisation refusée : ${url.searchParams.get("error") ?? "état invalide"}`),
-          );
-      });
-      let redirectUri = "";
-      server.listen(0, "127.0.0.1", () => {
-        const address = server.address();
-        if (address === null || typeof address === "string")
-          return reject(new Error("Port local indisponible"));
-        redirectUri = `http://127.0.0.1:${address.port}`;
-        const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-        auth.search = new URLSearchParams({
-          client_id: creds.clientId,
-          redirect_uri: redirectUri,
-          response_type: "code",
-          scope: SCOPE,
-          access_type: "offline",
-          prompt: "consent",
-          state,
-          code_challenge: challenge,
-          code_challenge_method: "S256",
-        }).toString();
-        onUrl(auth.toString());
-      });
-    },
-  );
-
-  const tokens = await tokenRequest({
-    code,
-    client_id: creds.clientId,
-    client_secret: creds.clientSecret,
-    redirect_uri: redirectUri,
-    grant_type: "authorization_code",
-    code_verifier: verifier,
-  });
-  if (!tokens.refresh_token) throw new Error("Google n'a pas renvoyé de refresh token.");
-  return tokens.refresh_token;
+/**
+ * Identité portée par l'id_token. Reçu directement du point de terminaison token (TLS), il n'a pas besoin
+ * d'une vérification de signature (OpenID Connect Core §3.1.3.7.6) ; on contrôle émetteur et audience.
+ */
+export function identityFromIdToken(idToken: string, clientId: string): GoogleIdentity {
+  const payload = idToken.split(".")[1];
+  if (!payload) throw new Error("id_token Google illisible.");
+  const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+    iss?: string;
+    aud?: string;
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+  };
+  if (!claims.iss || !ISSUERS.has(claims.iss) || claims.aud !== clientId)
+    throw new Error("id_token Google inattendu (émetteur ou audience).");
+  if (!claims.sub || !claims.email || claims.email_verified !== true)
+    throw new Error("Google n'a pas fourni d'adresse email vérifiée.");
+  return { id: claims.sub, email: normalizeEmail(claims.email) };
 }
 
-/** Access token valide, en lançant le consentement si aucun refresh token n'est stocké (ou s'il a expiré). */
-export async function getAccessToken(
+/** Secrets d'un flux d'autorisation : vérificateur PKCE, son empreinte, et l'état anti-CSRF. */
+export function newAuthSecrets(): { verifier: string; challenge: string; state: string } {
+  const verifier = randomBytes(32).toString("base64url");
+  return {
+    verifier,
+    challenge: createHash("sha256").update(verifier).digest("base64url"),
+    state: randomBytes(16).toString("base64url"),
+  };
+}
+
+export function authorizationUrl(
   creds: Credentials,
-  encryptionKey: Buffer,
-  /** Absent : pas de consentement interactif possible, on lève ConsentRequiredError. */
-  onUrl?: (url: string) => void,
+  params: { redirectUri: string; state: string; challenge: string },
+): string {
+  const url = new URL(AUTH_URL);
+  url.search = new URLSearchParams({
+    client_id: creds.clientId,
+    redirect_uri: params.redirectUri,
+    response_type: "code",
+    scope: SCOPES,
+    access_type: "offline",
+    // `consent` force Google à renvoyer un refresh token à chaque connexion (sinon seulement la première fois).
+    prompt: "consent",
+    state: params.state,
+    code_challenge: params.challenge,
+    code_challenge_method: "S256",
+  }).toString();
+  return url.toString();
+}
+
+/** Échange le code d'autorisation : identité + refresh token. */
+export async function exchangeCode(
+  creds: Credentials,
+  params: { code: string; redirectUri: string; verifier: string },
+): Promise<GoogleGrant> {
+  const tokens = await tokenRequest({
+    code: params.code,
+    client_id: creds.clientId,
+    client_secret: creds.clientSecret,
+    redirect_uri: params.redirectUri,
+    grant_type: "authorization_code",
+    code_verifier: params.verifier,
+  });
+  if (!tokens.refresh_token) throw new Error("Google n'a pas renvoyé de refresh token.");
+  if (!tokens.id_token) throw new Error("Google n'a pas renvoyé d'id_token.");
+  return {
+    identity: identityFromIdToken(tokens.id_token, creds.clientId),
+    refreshToken: tokens.refresh_token,
+  };
+}
+
+/** Access token Gmail. Refresh token expiré ou révoqué (7 jours en mode « test » Google) : ConsentRequiredError. */
+export async function refreshAccessToken(
+  creds: Credentials,
+  refreshToken: string,
 ): Promise<string> {
-  let refreshToken = await readSecret(TOKEN_FILE, encryptionKey);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (!refreshToken) {
-      if (!onUrl)
-        throw new ConsentRequiredError(
-          "Autorisation Gmail absente ou expirée : lance `pnpm spike` sur le Mac pour la renouveler.",
-        );
-      refreshToken = await authorize(creds, onUrl);
-      await writeSecret(TOKEN_FILE, encryptionKey, refreshToken);
-    }
-    try {
-      const tokens = await tokenRequest({
-        client_id: creds.clientId,
-        client_secret: creds.clientSecret,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      });
-      if (tokens.access_token) return tokens.access_token;
-    } catch {
-      // Refresh token expiré (7 jours en mode « test » Google) : on redemande le consentement.
-    }
-    refreshToken = undefined;
+  try {
+    const tokens = await tokenRequest({
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    });
+    if (tokens.access_token) return tokens.access_token;
+  } catch (error) {
+    if (!(error instanceof OAuthError && error.code === "invalid_grant")) throw error;
   }
-  throw new Error("Impossible d'obtenir un access token Gmail.");
+  throw new ConsentRequiredError();
+}
+
+/** Révocation côté Google (déconnexion de Gmail). Échec silencieux : le token est de toute façon supprimé chez nous. */
+export async function revokeToken(token: string): Promise<void> {
+  await fetch(REVOKE_URL, { method: "POST", body: new URLSearchParams({ token }) }).catch(
+    () => undefined,
+  );
+}
+
+/** CLI : ouvre le consentement Google, attend le retour sur CLI_REDIRECT_URI. */
+export async function authorizeOnDesktop(
+  creds: Credentials,
+  onUrl: (url: string) => void,
+): Promise<GoogleGrant> {
+  const { verifier, challenge, state } = newAuthSecrets();
+  const { hostname, port } = new URL(CLI_REDIRECT_URI);
+
+  const code = await new Promise<string>((resolve, reject) => {
+    const server = createServer((req, res) => {
+      const url = new URL(req.url ?? "/", CLI_REDIRECT_URI);
+      const code = url.searchParams.get("code");
+      const ok = code !== null && url.searchParams.get("state") === state;
+      res.writeHead(ok ? 200 : 400, { "content-type": "text/plain; charset=utf-8" });
+      res.end(
+        ok ? "Coly est connecté à Gmail. Tu peux fermer cet onglet." : "Échec de l'autorisation.",
+      );
+      server.close();
+      if (ok) resolve(code);
+      else
+        reject(
+          new Error(`Autorisation refusée : ${url.searchParams.get("error") ?? "état invalide"}`),
+        );
+    });
+    server.once("error", reject);
+    server.listen(Number(port), hostname, () =>
+      onUrl(authorizationUrl(creds, { redirectUri: CLI_REDIRECT_URI, state, challenge })),
+    );
+  });
+
+  return exchangeCode(creds, { code, redirectUri: CLI_REDIRECT_URI, verifier });
 }

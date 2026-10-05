@@ -1,6 +1,6 @@
 # 0014 — Accès mobile privé via Tailscale, pas d'URL publique
 
-- **Statut** : Accepté
+- **Statut** : Accepté ; la règle « pas d'authentification applicative » est remplacée par [0016](0016-comptes-google-donnees-par-utilisateur.md)
 - **Date** : 2026-09-23
 
 ## Contexte

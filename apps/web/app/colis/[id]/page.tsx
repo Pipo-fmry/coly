@@ -1,6 +1,7 @@
 import { readState } from "@coly/worker/sync";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireSession } from "../../auth";
 import { formatDate, formatDateTime, since } from "../../format";
 import {
   availableSince,
@@ -17,7 +18,9 @@ export const dynamic = "force-dynamic";
 
 export default async function ShipmentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const state = await readState();
+  const session = await requireSession();
+  // Seul l'état de l'utilisateur connecté est lu : le colis d'un autre compte est introuvable.
+  const state = await readState(session.userId);
   const shipment = state?.shipments.find((s) => s.id === decodeURIComponent(id));
   if (!shipment) notFound();
 
@@ -97,7 +100,7 @@ export default async function ShipmentDetail({ params }: { params: Promise<{ id:
             {qrEmail && (
               <a
                 className="button-primary"
-                href={gmailLink(qrEmail.messageId)}
+                href={gmailLink(qrEmail.messageId, session.email)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

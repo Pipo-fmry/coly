@@ -18,5 +18,6 @@ Une décision structurante = un fichier, numéroté, jamais réécrit une fois a
 | [0011](0011-graphify-reporte.md) | Graphify reporté | Accepté |
 | [0012](0012-outillage-qualite.md) | Outillage qualité : Biome, Vitest, Lefthook, Ponytail, CI sécurité | Accepté |
 | [0013](0013-minimisation-promesse-produit.md) | Ne lire et ne garder que l'indispensable : une promesse produit | Accepté |
-| [0014](0014-acces-mobile-prive-tailscale.md) | Accès mobile privé via Tailscale, pas d'URL publique | Accepté |
+| [0014](0014-acces-mobile-prive-tailscale.md) | Accès mobile privé via Tailscale, pas d'URL publique | Accepté (authentification remplacée par 0016) |
 | [0015](0015-information-la-plus-juste.md) | L'information la plus juste, d'où qu'elle vienne | Accepté |
+| [0016](0016-comptes-google-donnees-par-utilisateur.md) | Comptes « Se connecter avec Google », données séparées par utilisateur | Accepté |
