@@ -38,9 +38,12 @@ appareils de ton réseau privé entrent : il faut **partager la machine** avec l
 que l'app demande une connexion, pratique pour des testeurs sans Tailscale. Dans les deux cas le Mac doit rester
 allumé. Au-delà de quelques testeurs : petit serveur en Union européenne (étape 1 de l'[architecture](../architecture/overview.md)).
 
+`pnpm web` sert Coly sur 127.0.0.1:3000 ; `tailscale funnel --bg 3000` l'expose publiquement
+(ou `tailscale serve --bg 3000` en réseau privé).
+
 ```bash
-pnpm web                        # sert Coly sur 127.0.0.1:3000
-tailscale funnel --bg 3000      # ou `tailscale serve --bg 3000` en réseau privé
+pnpm web
+tailscale funnel --bg 3000
 ```
 
 ## 4. Ce que vit un testeur
